@@ -1,7 +1,7 @@
 ---
 name: feature template
 about: 새 기능이나 API 구현 작업
-title: "[Feat] "
+title: "[feat] "
 labels: feature
 assignees: ''
 ---

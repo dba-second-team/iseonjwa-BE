@@ -1,7 +1,7 @@
 ---
-name: DB change template
+name: db change template
 about: 테이블/컬럼/인덱스/샘플 데이터 변경이 필요할 때 DB 담당에게 요청
-title: "[DB] "
+title: "[db] "
 labels: db
 assignees: ''
 ---
