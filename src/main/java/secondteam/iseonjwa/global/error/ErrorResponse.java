@@ -10,11 +10,10 @@ import org.springframework.http.HttpStatus;
 public class ErrorResponse {
 
     private final ErrorCode errorCode;
-    private final HttpStatus status;
     private final String message;
 
-    public ErrorResponse of(ErrorCode code) {
-        return new ErrorResponse(errorCode, code.getStatus(), code.getMessage());
+    public static ErrorResponse of(ErrorCode code) {
+        return new ErrorResponse(code, code.getMessage());
     }
 
 }
