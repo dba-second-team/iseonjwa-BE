@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import secondteam.iseonjwa.seat.entity.SeatRank;
 
 @Entity
-@Table(name = "PRICE")
+@Table(name = "price")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Price {

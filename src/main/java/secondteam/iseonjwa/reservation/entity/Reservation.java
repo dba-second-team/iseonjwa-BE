@@ -10,7 +10,7 @@ import secondteam.iseonjwa.performance.entity.Schedule;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "RESERVATION")
+@Table(name = "reservation")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Reservation {
@@ -27,8 +27,9 @@ public class Reservation {
     @JoinColumn(name = "schedule_id", nullable = false)
     private Schedule schedule;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    private ReservationStatus status;
 
     @Column(name = "reserved_at", nullable = false)
     private LocalDateTime reservedAt;
@@ -37,7 +38,7 @@ public class Reservation {
     private LocalDateTime canceledAt;
 
     @Builder
-    private Reservation(Member member, Schedule schedule, String status,
+    private Reservation(Member member, Schedule schedule, ReservationStatus status,
                         LocalDateTime reservedAt, LocalDateTime canceledAt) {
         this.member = member;
         this.schedule = schedule;

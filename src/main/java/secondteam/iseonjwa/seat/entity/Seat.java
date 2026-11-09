@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import secondteam.iseonjwa.performance.entity.Venue;
 
 @Entity
-@Table(name = "SEAT", uniqueConstraints = {
+@Table(name = "seat", uniqueConstraints = {
     @UniqueConstraint(name = "AK_SEAT_POSITION", columnNames = {"venue_id", "section", "row_num", "seat_num"})
 })
 @Getter

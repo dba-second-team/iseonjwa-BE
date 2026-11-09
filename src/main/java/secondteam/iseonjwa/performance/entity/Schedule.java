@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "SCHEDULE", uniqueConstraints = {
+@Table(name = "schedule", uniqueConstraints = {
     @UniqueConstraint(name = "AK_SCHEDULE_START", columnNames = {"performance_id", "start_at"})
 })
 @Getter
@@ -26,11 +26,12 @@ public class Schedule {
     @Column(name = "start_at", nullable = false)
     private LocalDateTime startAt;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    private ScheduleStatus status;
 
     @Builder
-    private Schedule(Performance performance, LocalDateTime startAt, String status) {
+    private Schedule(Performance performance, LocalDateTime startAt, ScheduleStatus status) {
         this.performance = performance;
         this.startAt = startAt;
         this.status = status;

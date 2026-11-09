@@ -9,7 +9,7 @@
 -- BCrypt로 해싱된 테스트 비밀번호
 -- 실제 사용자 계정에 사용하지 말 것
 
-INSERT INTO MEMBER
+INSERT INTO member
 (member_id, email, password, name, phone, role, created_at)
 VALUES
 (1, 'user1@example.com',
@@ -27,7 +27,7 @@ VALUES
 
 -- 2. 공연장 1개
 
-INSERT INTO VENUE
+INSERT INTO venue
 (venue_id, name, address)
 VALUES
 (1, '이선좌 아트홀', '서울특별시 동작구 상도로 100');
@@ -35,7 +35,7 @@ VALUES
 
 -- 3. 좌석 등급
 
-INSERT INTO SEAT_RANK
+INSERT INTO seat_rank
 (seat_rank_id, grade, sort_order)
 VALUES
 (1, 'VIP', 1),
@@ -47,7 +47,7 @@ VALUES
 -- A구역 1~10열, 각 열 1~10번
 -- 총 10 x 10 = 100석
 
-INSERT INTO SEAT
+INSERT INTO seat
 (venue_id, section, row_num, seat_num)
 SELECT
     1,
@@ -85,7 +85,7 @@ CROSS JOIN
 -- 5. 공연 2개
 -- running_time 단위: 초
 
-INSERT INTO PERFORMANCE
+INSERT INTO performance
 (performance_id, title, genre, running_time,
  description, status, venue_id)
 VALUES
@@ -112,7 +112,7 @@ VALUES
 -- 6. 공연별 좌석 가격
 -- PRICE는 performance_id + seat_rank_id 복합 PK
 
-INSERT INTO PRICE
+INSERT INTO price
 (performance_id, seat_rank_id, price)
 VALUES
 (1, 1, 150000),
@@ -127,7 +127,7 @@ VALUES
 -- 7. 공연 회차
 -- 공연당 2회차, 총 4회차
 
-INSERT INTO SCHEDULE
+INSERT INTO schedule
 (schedule_id, performance_id, start_at, status)
 VALUES
 (1, 1, '2026-12-12 14:00:00', 'OPEN'),
@@ -144,9 +144,9 @@ VALUES
 -- 4~7열: R
 -- 8~10열: S
 --
--- 총 200개 PERFORMANCE_SEAT 생성
+-- 총 200개 performance_seat 생성
 
-INSERT INTO PERFORMANCE_SEAT
+INSERT INTO performance_seat
 (performance_id, seat_id, seat_rank_id)
 SELECT
     p.performance_id,
@@ -156,8 +156,8 @@ SELECT
         WHEN CAST(s.row_num AS UNSIGNED) <= 7 THEN 2
         ELSE 3
     END
-FROM PERFORMANCE p
-JOIN SEAT s
+FROM performance p
+JOIN seat s
     ON p.venue_id = s.venue_id
 WHERE p.performance_id IN (1, 2);
 
@@ -166,7 +166,7 @@ WHERE p.performance_id IN (1, 2);
 -- 4회차 x 100석 = 총 400석
 -- 초기 상태는 모두 AVAILABLE
 
-INSERT INTO SCHEDULED_SEAT
+INSERT INTO scheduled_seat
 (schedule_id, performance_seat_id, status,
  held_by, held_until)
 SELECT
@@ -175,8 +175,8 @@ SELECT
     'AVAILABLE',
     NULL,
     NULL
-FROM SCHEDULE sc
-JOIN PERFORMANCE_SEAT ps
+FROM schedule sc
+JOIN performance_seat ps
     ON sc.performance_id = ps.performance_id
 WHERE sc.schedule_id IN (1, 2, 3, 4);
 

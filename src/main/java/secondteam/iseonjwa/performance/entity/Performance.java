@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "PERFORMANCE")
+@Table(name = "performance")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Performance {
@@ -23,8 +23,10 @@ public class Performance {
     @Column(name = "title", nullable = false, length = 200)
     private String title;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "genre", nullable = false, length = 20)
-    private String genre;
+    private Genre genre;
+
 
     /** Running time in seconds. */
     @Column(name = "running_time", nullable = false)
@@ -33,12 +35,13 @@ public class Performance {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    private PerformanceStatus status;
 
     @Builder
-    private Performance(Venue venue, String title, String genre, Integer runningTime,
-                        String description, String status) {
+    private Performance(Venue venue, String title, Genre genre, Integer runningTime,
+                        String description, PerformanceStatus status) {
         this.venue = venue;
         this.title = title;
         this.genre = genre;

@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import secondteam.iseonjwa.seat.entity.ScheduledSeat;
 
 @Entity
-@Table(name = "RESERVATION_SEAT")
+@Table(name = "reservation_seat")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ReservationSeat {

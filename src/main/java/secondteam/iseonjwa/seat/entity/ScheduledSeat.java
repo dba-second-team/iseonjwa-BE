@@ -10,7 +10,7 @@ import secondteam.iseonjwa.performance.entity.Schedule;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "SCHEDULED_SEAT", uniqueConstraints = {
+@Table(name = "scheduled_seat", uniqueConstraints = {
     @UniqueConstraint(name = "AK_SCHEDULED_SEAT", columnNames = {"schedule_id", "performance_seat_id"})
 })
 @Getter
@@ -29,8 +29,9 @@ public class ScheduledSeat {
     @JoinColumn(name = "performance_seat_id", nullable = false)
     private PerformanceSeat performanceSeat;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    private ScheduledSeatStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "held_by")
@@ -40,7 +41,7 @@ public class ScheduledSeat {
     private LocalDateTime heldUntil;
 
     @Builder
-    private ScheduledSeat(Schedule schedule, PerformanceSeat performanceSeat, String status,
+    private ScheduledSeat(Schedule schedule, PerformanceSeat performanceSeat, ScheduledSeatStatus status,
                           Member heldBy, LocalDateTime heldUntil) {
         this.schedule = schedule;
         this.performanceSeat = performanceSeat;

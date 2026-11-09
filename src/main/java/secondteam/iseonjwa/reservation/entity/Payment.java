@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "PAYMENT")
+@Table(name = "payment")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Payment {
@@ -21,8 +21,9 @@ public class Payment {
     @JoinColumn(name = "reservation_id", nullable = false, unique = true)
     private Reservation reservation;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "payment_method", nullable = false, length = 20)
-    private String paymentMethod;
+    private PaymentMethod paymentMethod;
 
     @Column(name = "paid_amount", nullable = false)
     private Integer paidAmount;
@@ -33,8 +34,9 @@ public class Payment {
     @Column(name = "refund_amount", nullable = false)
     private Integer refundAmount = 0;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    private PaymentStatus status;
 
     @Column(name = "paid_at", nullable = false)
     private LocalDateTime paidAt;
@@ -43,8 +45,8 @@ public class Payment {
     private LocalDateTime refundedAt;
 
     @Builder
-    private Payment(Reservation reservation, String paymentMethod, Integer paidAmount,
-                    Integer cancelFee, Integer refundAmount, String status,
+    private Payment(Reservation reservation, PaymentMethod paymentMethod, Integer paidAmount,
+                    Integer cancelFee, Integer refundAmount, PaymentStatus status,
                     LocalDateTime paidAt, LocalDateTime refundedAt) {
         this.reservation = reservation;
         this.paymentMethod = paymentMethod;
