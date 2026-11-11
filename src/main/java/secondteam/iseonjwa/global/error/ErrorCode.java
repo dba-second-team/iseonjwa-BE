@@ -13,6 +13,7 @@ public enum ErrorCode {
     PRICE_NOT_SET(HttpStatus.BAD_REQUEST, "등급별 가격이 설정되지 않았습니다."),
 
     // 401 Unauthorized
+    LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "로그인에 실패했습니다."),
 
     // 403 Forbidden
     FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
@@ -30,10 +31,7 @@ public enum ErrorCode {
     HOLD_EXPIRED(HttpStatus.CONFLICT, "좌석 선점 시간이 만료되었거나 선점한 좌석이 아닙니다."),
     ALREADY_CANCELED(HttpStatus.CONFLICT, "이미 취소된 예매입니다."),
     CANCEL_NOT_ALLOWED(HttpStatus.CONFLICT, "공연 당일에는 예매를 취소할 수 없습니다."),
-    SCHEDULE_CONFLICT(HttpStatus.CONFLICT, "같은 공연장에 시간이 겹치는 회차가 있습니다."),
-    
-    // 500
-    LOGIN_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "로그인에 실패했습니다."),
+    SCHEDULE_CONFLICT(HttpStatus.CONFLICT, "같은 공연장에 시간이 겹치는 회차가 있습니다.")
     ;
 
     private final HttpStatus status;
