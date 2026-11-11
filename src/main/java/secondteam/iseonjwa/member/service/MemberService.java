@@ -12,6 +12,7 @@ import secondteam.iseonjwa.member.dto.LogInResponse;
 import secondteam.iseonjwa.member.dto.SignUpRequest;
 import secondteam.iseonjwa.member.dto.SignUpResponse;
 import secondteam.iseonjwa.member.entity.Member;
+import secondteam.iseonjwa.member.entity.Role;
 import secondteam.iseonjwa.member.repository.MemberRepository;
 
 @Service
@@ -42,6 +43,14 @@ public class MemberService {
 
     public LogInResponse logIn(LogInRequest request) {
         Member member = authenticate(request);
+        return LogInResponse.from(member);
+    }
+
+    public LogInResponse adminLogin(LogInRequest request) {
+        Member member = authenticate(request);
+        if (member.getRole() != Role.ADMIN) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
         return LogInResponse.from(member);
     }
 
