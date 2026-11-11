@@ -1,6 +1,7 @@
 package secondteam.iseonjwa.member.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,11 @@ public class MemberService {
                 .name(request.name())
                 .phone(request.phone())
                 .build();
-        return SignUpResponse.from(memberRepository.save(member));
+        try {
+            Member saved = memberRepository.saveAndFlush(member);
+            return SignUpResponse.from(saved);
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(ErrorCode.EMAIL_DUPLICATED);
+        }
     }
 }
