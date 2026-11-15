@@ -11,8 +11,9 @@ public class Price {
     private Long performanceId;
 
     @Id
+    @Enumerated(EnumType.STRING)
     @Column(name = "seat_rank", nullable = false, length = 20)
-    private String seatRank;
+    private PriceSeatRank seatRank;
 
     @Column(name = "price", nullable = false)
     private Integer price;
@@ -27,8 +28,8 @@ public class Price {
     public Long getPerformanceId() { return performanceId; }
     public void setPerformanceId(Long value) { this.performanceId = value; }
 
-    public String getSeatRank() { return seatRank; }
-    public void setSeatRank(String value) { this.seatRank = value; }
+    public PriceSeatRank getSeatRank() { return seatRank; }
+    public void setSeatRank(PriceSeatRank value) { this.seatRank = value; }
 
     public Integer getPrice() { return price; }
     public void setPrice(Integer value) { this.price = value; }

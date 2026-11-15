@@ -2,6 +2,7 @@ package secondteam.iseonjwa.member.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import jakarta.validation.constraints.Pattern;
 
 @Entity
 @Table(name = "member", uniqueConstraints = @UniqueConstraint(name = "AK_MEMBER_EMAIL", columnNames = "email"))
@@ -17,11 +18,16 @@ public class Member {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
+    @Pattern(
+        regexp = "^[0-9]+$",
+        message = "전화번호는 하이픈 없이 숫자만 입력해야 합니다."
+    )
     @Column(name = "phone", length = 20)
     private String phone;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
-    private String role;
+    private Role role;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -43,8 +49,8 @@ public class Member {
     public String getPhone() { return phone; }
     public void setPhone(String value) { this.phone = value; }
 
-    public String getRole() { return role; }
-    public void setRole(String value) { this.role = value; }
+    public Role getRole() { return role; }
+    public void setRole(Role value) { this.role = value; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime value) { this.createdAt = value; }

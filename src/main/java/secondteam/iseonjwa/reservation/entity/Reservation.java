@@ -14,8 +14,9 @@ public class Reservation {
     @Column(name = "reservation_id")
     private Long reservationId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    private ReservationStatus status;
 
     @Column(name = "reserved_at", nullable = false)
     private LocalDateTime reservedAt;
@@ -40,8 +41,8 @@ public class Reservation {
     public Long getReservationId() { return reservationId; }
     public void setReservationId(Long value) { this.reservationId = value; }
 
-    public String getStatus() { return status; }
-    public void setStatus(String value) { this.status = value; }
+    public ReservationStatus getStatus() { return status; }
+    public void setStatus(ReservationStatus value) { this.status = value; }
 
     public LocalDateTime getReservedAt() { return reservedAt; }
     public void setReservedAt(LocalDateTime value) { this.reservedAt = value; }

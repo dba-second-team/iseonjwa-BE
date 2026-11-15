@@ -14,8 +14,9 @@ public class Seat {
     @Column(name = "seat_id")
     private Long seatId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "section", nullable = false, length = 20)
-    private String section;
+    private SeatSection section;
 
     @Column(name = "row_num", nullable = false, length = 10)
     private String rowNum;
@@ -23,11 +24,13 @@ public class Seat {
     @Column(name = "seat_num", nullable = false)
     private Integer seatNum;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "seat_rank", nullable = false, length = 20)
-    private String seatRank;
+    private SeatRank seatRank;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    private SeatStatus status;
 
     @Column(name = "held_until")
     private LocalDateTime heldUntil;
@@ -45,8 +48,8 @@ public class Seat {
     public Long getSeatId() { return seatId; }
     public void setSeatId(Long value) { this.seatId = value; }
 
-    public String getSection() { return section; }
-    public void setSection(String value) { this.section = value; }
+    public SeatSection getSection() { return section; }
+    public void setSection(SeatSection value) { this.section = value; }
 
     public String getRowNum() { return rowNum; }
     public void setRowNum(String value) { this.rowNum = value; }
@@ -54,11 +57,11 @@ public class Seat {
     public Integer getSeatNum() { return seatNum; }
     public void setSeatNum(Integer value) { this.seatNum = value; }
 
-    public String getSeatRank() { return seatRank; }
-    public void setSeatRank(String value) { this.seatRank = value; }
+    public SeatRank getSeatRank() { return seatRank; }
+    public void setSeatRank(SeatRank value) { this.seatRank = value; }
 
-    public String getStatus() { return status; }
-    public void setStatus(String value) { this.status = value; }
+    public SeatStatus getStatus() { return status; }
+    public void setStatus(SeatStatus value) { this.status = value; }
 
     public LocalDateTime getHeldUntil() { return heldUntil; }
     public void setHeldUntil(LocalDateTime value) { this.heldUntil = value; }

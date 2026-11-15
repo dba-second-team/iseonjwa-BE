@@ -13,8 +13,9 @@ public class Performance {
     @Column(name = "title", nullable = false, length = 200)
     private String title;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "genre", nullable = false, length = 20)
-    private String genre;
+    private Genre genre;
 
     @Column(name = "running_time", nullable = false)
     private Integer runningTime;
@@ -22,8 +23,9 @@ public class Performance {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    private PerformanceStatus status;
 
     @Column(name = "venue_name", nullable = false, length = 200)
     private String venueName;
@@ -39,8 +41,8 @@ public class Performance {
     public String getTitle() { return title; }
     public void setTitle(String value) { this.title = value; }
 
-    public String getGenre() { return genre; }
-    public void setGenre(String value) { this.genre = value; }
+    public Genre getGenre() { return genre; }
+    public void setGenre(Genre value) { this.genre = value; }
 
     public Integer getRunningTime() { return runningTime; }
     public void setRunningTime(Integer value) { this.runningTime = value; }
@@ -48,8 +50,8 @@ public class Performance {
     public String getDescription() { return description; }
     public void setDescription(String value) { this.description = value; }
 
-    public String getStatus() { return status; }
-    public void setStatus(String value) { this.status = value; }
+    public PerformanceStatus getStatus() { return status; }
+    public void setStatus(PerformanceStatus value) { this.status = value; }
 
     public String getVenueName() { return venueName; }
     public void setVenueName(String value) { this.venueName = value; }

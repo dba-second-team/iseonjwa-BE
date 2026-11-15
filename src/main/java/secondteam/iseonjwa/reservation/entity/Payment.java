@@ -21,8 +21,9 @@ public class Payment {
     @Column(name = "refund_amount", nullable = false)
     private Integer refundAmount = 0;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    private PaymentStatus status;
 
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
@@ -49,8 +50,8 @@ public class Payment {
     public Integer getRefundAmount() { return refundAmount; }
     public void setRefundAmount(Integer value) { this.refundAmount = value; }
 
-    public String getStatus() { return status; }
-    public void setStatus(String value) { this.status = value; }
+    public PaymentStatus getStatus() { return status; }
+    public void setStatus(PaymentStatus value) { this.status = value; }
 
     public LocalDateTime getPaidAt() { return paidAt; }
     public void setPaidAt(LocalDateTime value) { this.paidAt = value; }
