@@ -1,35 +1,21 @@
 package secondteam.iseonjwa.reservation.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
 import secondteam.iseonjwa.member.entity.Member;
 import secondteam.iseonjwa.performance.entity.Schedule;
-import java.time.LocalDateTime;
+import secondteam.iseonjwa.seat.entity.Seat;
 
 @Entity
 @Table(name = "reservation")
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Reservation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "reservation_id")
     private Long reservationId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "member_id", nullable = false)
-    private Member member;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "schedule_id", nullable = false)
-    private Schedule schedule;
-
-    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private ReservationStatus status;
+    private String status;
 
     @Column(name = "reserved_at", nullable = false)
     private LocalDateTime reservedAt;
@@ -37,13 +23,38 @@ public class Reservation {
     @Column(name = "canceled_at")
     private LocalDateTime canceledAt;
 
-    @Builder
-    private Reservation(Member member, Schedule schedule, ReservationStatus status,
-                        LocalDateTime reservedAt, LocalDateTime canceledAt) {
-        this.member = member;
-        this.schedule = schedule;
-        this.status = status;
-        this.reservedAt = reservedAt;
-        this.canceledAt = canceledAt;
-    }
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "member_id", nullable = false, foreignKey = @ForeignKey(name = "R_12"))
+    private Member member;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "schedule_id", nullable = false, foreignKey = @ForeignKey(name = "R_13"))
+    private Schedule schedule;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "seat_id", nullable = false, foreignKey = @ForeignKey(name = "R_19"))
+    private Seat seat;
+
+    protected Reservation() {}
+
+    public Long getReservationId() { return reservationId; }
+    public void setReservationId(Long value) { this.reservationId = value; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String value) { this.status = value; }
+
+    public LocalDateTime getReservedAt() { return reservedAt; }
+    public void setReservedAt(LocalDateTime value) { this.reservedAt = value; }
+
+    public LocalDateTime getCanceledAt() { return canceledAt; }
+    public void setCanceledAt(LocalDateTime value) { this.canceledAt = value; }
+
+    public Member getMember() { return member; }
+    public void setMember(Member value) { this.member = value; }
+
+    public Schedule getSchedule() { return schedule; }
+    public void setSchedule(Schedule value) { this.schedule = value; }
+
+    public Seat getSeat() { return seat; }
+    public void setSeat(Seat value) { this.seat = value; }
 }

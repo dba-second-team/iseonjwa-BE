@@ -1,29 +1,16 @@
 package secondteam.iseonjwa.reservation.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "payment")
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(name = "payment", uniqueConstraints = @UniqueConstraint(
+        name = "AK_PAYMENT_RESERVATION", columnNames = "reservation_id"))
 public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "payment_id")
     private Long paymentId;
-
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "reservation_id", nullable = false, unique = true)
-    private Reservation reservation;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "payment_method", nullable = false, length = 20)
-    private PaymentMethod paymentMethod;
 
     @Column(name = "paid_amount", nullable = false)
     private Integer paidAmount;
@@ -34,27 +21,43 @@ public class Payment {
     @Column(name = "refund_amount", nullable = false)
     private Integer refundAmount = 0;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private PaymentStatus status;
+    private String status;
 
-    @Column(name = "paid_at", nullable = false)
+    @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
     @Column(name = "refunded_at")
     private LocalDateTime refundedAt;
 
-    @Builder
-    private Payment(Reservation reservation, PaymentMethod paymentMethod, Integer paidAmount,
-                    Integer cancelFee, Integer refundAmount, PaymentStatus status,
-                    LocalDateTime paidAt, LocalDateTime refundedAt) {
-        this.reservation = reservation;
-        this.paymentMethod = paymentMethod;
-        this.paidAmount = paidAmount;
-        this.cancelFee = cancelFee == null ? 0 : cancelFee;
-        this.refundAmount = refundAmount == null ? 0 : refundAmount;
-        this.status = status;
-        this.paidAt = paidAt;
-        this.refundedAt = refundedAt;
-    }
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "reservation_id", nullable = false, unique = true,
+            foreignKey = @ForeignKey(name = "R_16"))
+    private Reservation reservation;
+
+    protected Payment() {}
+
+    public Long getPaymentId() { return paymentId; }
+    public void setPaymentId(Long value) { this.paymentId = value; }
+
+    public Integer getPaidAmount() { return paidAmount; }
+    public void setPaidAmount(Integer value) { this.paidAmount = value; }
+
+    public Integer getCancelFee() { return cancelFee; }
+    public void setCancelFee(Integer value) { this.cancelFee = value; }
+
+    public Integer getRefundAmount() { return refundAmount; }
+    public void setRefundAmount(Integer value) { this.refundAmount = value; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String value) { this.status = value; }
+
+    public LocalDateTime getPaidAt() { return paidAt; }
+    public void setPaidAt(LocalDateTime value) { this.paidAt = value; }
+
+    public LocalDateTime getRefundedAt() { return refundedAt; }
+    public void setRefundedAt(LocalDateTime value) { this.refundedAt = value; }
+
+    public Reservation getReservation() { return reservation; }
+    public void setReservation(Reservation value) { this.reservation = value; }
 }

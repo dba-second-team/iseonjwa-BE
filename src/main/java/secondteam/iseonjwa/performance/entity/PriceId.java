@@ -1,29 +1,30 @@
 package secondteam.iseonjwa.performance.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Embeddable;
-import lombok.AccessLevel;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-
 import java.io.Serializable;
+import java.util.Objects;
 
-@Embeddable
-@Getter
-@EqualsAndHashCode
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PriceId implements Serializable {
-    private static final long serialVersionUID = 1L;
-
-    @Column(name = "performance_id", nullable = false)
     private Long performanceId;
+    private String seatRank;
 
-    @Column(name = "seat_rank_id", nullable = false)
-    private Long seatRankId;
+    public PriceId() {}
 
-    public PriceId(Long performanceId, Long seatRankId) {
+    public PriceId(Long performanceId, String seatRank) {
         this.performanceId = performanceId;
-        this.seatRankId = seatRankId;
+        this.seatRank = seatRank;
     }
+
+    public Long getPerformanceId() { return performanceId; }
+    public String getSeatRank() { return seatRank; }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) return true;
+        if (!(other instanceof PriceId that)) return false;
+        return Objects.equals(performanceId, that.performanceId)
+                && Objects.equals(seatRank, that.seatRank);
+    }
+
+    @Override
+    public int hashCode() { return Objects.hash(performanceId, seatRank); }
 }

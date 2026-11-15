@@ -1,52 +1,59 @@
 package secondteam.iseonjwa.performance.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "performance")
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Performance {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "performance_id")
     private Long performanceId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "venue_id", nullable = false)
-    private Venue venue;
-
     @Column(name = "title", nullable = false, length = 200)
     private String title;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "genre", nullable = false, length = 20)
-    private Genre genre;
+    private String genre;
 
-
-    /** Running time in seconds. */
     @Column(name = "running_time", nullable = false)
     private Integer runningTime;
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private PerformanceStatus status;
+    private String status;
 
-    @Builder
-    private Performance(Venue venue, String title, Genre genre, Integer runningTime,
-                        String description, PerformanceStatus status) {
-        this.venue = venue;
-        this.title = title;
-        this.genre = genre;
-        this.runningTime = runningTime;
-        this.description = description;
-        this.status = status;
-    }
+    @Column(name = "venue_name", nullable = false, length = 200)
+    private String venueName;
+
+    @Column(name = "max_tickets_per_member", nullable = false)
+    private Integer maxTicketsPerMember;
+
+    protected Performance() {}
+
+    public Long getPerformanceId() { return performanceId; }
+    public void setPerformanceId(Long value) { this.performanceId = value; }
+
+    public String getTitle() { return title; }
+    public void setTitle(String value) { this.title = value; }
+
+    public String getGenre() { return genre; }
+    public void setGenre(String value) { this.genre = value; }
+
+    public Integer getRunningTime() { return runningTime; }
+    public void setRunningTime(Integer value) { this.runningTime = value; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String value) { this.description = value; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String value) { this.status = value; }
+
+    public String getVenueName() { return venueName; }
+    public void setVenueName(String value) { this.venueName = value; }
+
+    public Integer getMaxTicketsPerMember() { return maxTicketsPerMember; }
+    public void setMaxTicketsPerMember(Integer value) { this.maxTicketsPerMember = value; }
 }

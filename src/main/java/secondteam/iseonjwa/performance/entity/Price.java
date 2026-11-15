@@ -1,39 +1,38 @@
 package secondteam.iseonjwa.performance.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import secondteam.iseonjwa.seat.entity.SeatRank;
 
 @Entity
 @Table(name = "price")
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@IdClass(PriceId.class)
 public class Price {
-    @EmbeddedId
-    private PriceId id;
+    @Id
+    @Column(name = "performance_id", nullable = false)
+    private Long performanceId;
 
-    @MapsId("performanceId")
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "performance_id", nullable = false)
-    private Performance performance;
-
-    @MapsId("seatRankId")
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "seat_rank_id", nullable = false)
-    private SeatRank seatRank;
+    @Id
+    @Column(name = "seat_rank", nullable = false, length = 20)
+    private String seatRank;
 
     @Column(name = "price", nullable = false)
     private Integer price;
 
-    @Builder
-    private Price(Performance performance, SeatRank seatRank, Integer price) {
-        this.performance = performance;
-        this.seatRank = seatRank;
-        this.price = price;
-        this.id = new PriceId(performance.getPerformanceId(), seatRank.getSeatRankId());
-        // Both references must already be persisted before constructing a Price.
-    }
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "performance_id", insertable = false, updatable = false,
+            nullable = false, foreignKey = @ForeignKey(name = "R_6"))
+    private Performance performance;
+
+    protected Price() {}
+
+    public Long getPerformanceId() { return performanceId; }
+    public void setPerformanceId(Long value) { this.performanceId = value; }
+
+    public String getSeatRank() { return seatRank; }
+    public void setSeatRank(String value) { this.seatRank = value; }
+
+    public Integer getPrice() { return price; }
+    public void setPrice(Integer value) { this.price = value; }
+
+    public Performance getPerformance() { return performance; }
+    public void setPerformance(Performance value) { this.performance = value; }
 }
