@@ -28,7 +28,6 @@ CREATE TABLE schedule
 (
     schedule_id BIGINT AUTO_INCREMENT NOT NULL,
     start_at DATETIME NOT NULL,
-    status VARCHAR(20) NOT NULL,
     performance_id BIGINT NOT NULL,
     CONSTRAINT XPKSCHEDULE PRIMARY KEY (schedule_id ASC),
     CONSTRAINT AK_SCHEDULE_START UNIQUE (performance_id ASC, start_at ASC),

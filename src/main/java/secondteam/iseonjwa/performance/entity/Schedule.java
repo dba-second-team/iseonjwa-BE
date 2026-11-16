@@ -22,17 +22,13 @@ public class Schedule {
     @Column(name = "start_at", nullable = false)
     private LocalDateTime startAt;
 
-    @Column(name = "status", nullable = false, length = 20)
-    private String status;
-
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "performance_id", nullable = false, foreignKey = @ForeignKey(name = "R_8"))
     private Performance performance;
 
     @Builder
-    private Schedule(LocalDateTime startAt, String status, Performance performance) {
+    private Schedule(LocalDateTime startAt, Performance performance) {
         this.startAt = startAt;
-        this.status = status;
         this.performance = performance;
     }
 }
