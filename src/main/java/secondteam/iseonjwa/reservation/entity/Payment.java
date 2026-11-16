@@ -1,11 +1,18 @@
 package secondteam.iseonjwa.reservation.entity;
 
 import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "payment", uniqueConstraints = @UniqueConstraint(
         name = "AK_PAYMENT_RESERVATION", columnNames = "reservation_id"))
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,29 +43,16 @@ public class Payment {
             foreignKey = @ForeignKey(name = "R_16"))
     private Reservation reservation;
 
-    protected Payment() {}
-
-    public Long getPaymentId() { return paymentId; }
-    public void setPaymentId(Long value) { this.paymentId = value; }
-
-    public Integer getPaidAmount() { return paidAmount; }
-    public void setPaidAmount(Integer value) { this.paidAmount = value; }
-
-    public Integer getCancelFee() { return cancelFee; }
-    public void setCancelFee(Integer value) { this.cancelFee = value; }
-
-    public Integer getRefundAmount() { return refundAmount; }
-    public void setRefundAmount(Integer value) { this.refundAmount = value; }
-
-    public PaymentStatus getStatus() { return status; }
-    public void setStatus(PaymentStatus value) { this.status = value; }
-
-    public LocalDateTime getPaidAt() { return paidAt; }
-    public void setPaidAt(LocalDateTime value) { this.paidAt = value; }
-
-    public LocalDateTime getRefundedAt() { return refundedAt; }
-    public void setRefundedAt(LocalDateTime value) { this.refundedAt = value; }
-
-    public Reservation getReservation() { return reservation; }
-    public void setReservation(Reservation value) { this.reservation = value; }
+    @Builder
+    public Payment(Long paymentId, Integer paidAmount, Integer cancelFee, Integer refundAmount,
+                   PaymentStatus status,LocalDateTime paidAt, LocalDateTime refundedAt, Reservation reservation) {
+        this.paymentId = paymentId;
+        this.paidAmount = paidAmount;
+        this.cancelFee = cancelFee;
+        this.refundAmount = refundAmount;
+        this.status = status;
+        this.paidAt = paidAt;
+        this.refundedAt = refundedAt;
+        this.reservation = reservation;
+    }
 }

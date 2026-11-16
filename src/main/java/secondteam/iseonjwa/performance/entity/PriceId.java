@@ -1,21 +1,19 @@
 
 package secondteam.iseonjwa.performance.entity;
 
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+
 import java.io.Serializable;
 import java.util.Objects;
 
+@NoArgsConstructor
+@AllArgsConstructor
 public class PriceId implements Serializable {
 
     private Long performanceId;
     private PriceSeatRank seatRank;
-
-    public PriceId() {
-    }
-
-    public PriceId(Long performanceId, PriceSeatRank seatRank) {
-        this.performanceId = performanceId;
-        this.seatRank = seatRank;
-    }
 
     @Override
     public boolean equals(Object o) {

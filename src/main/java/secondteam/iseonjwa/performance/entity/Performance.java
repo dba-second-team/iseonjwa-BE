@@ -1,9 +1,15 @@
 package secondteam.iseonjwa.performance.entity;
 
 import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 @Entity
 @Table(name = "performance")
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
 public class Performance {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,29 +39,15 @@ public class Performance {
     @Column(name = "max_tickets_per_member", nullable = false)
     private Integer maxTicketsPerMember;
 
-    protected Performance() {}
-
-    public Long getPerformanceId() { return performanceId; }
-    public void setPerformanceId(Long value) { this.performanceId = value; }
-
-    public String getTitle() { return title; }
-    public void setTitle(String value) { this.title = value; }
-
-    public Genre getGenre() { return genre; }
-    public void setGenre(Genre value) { this.genre = value; }
-
-    public Integer getRunningTime() { return runningTime; }
-    public void setRunningTime(Integer value) { this.runningTime = value; }
-
-    public String getDescription() { return description; }
-    public void setDescription(String value) { this.description = value; }
-
-    public PerformanceStatus getStatus() { return status; }
-    public void setStatus(PerformanceStatus value) { this.status = value; }
-
-    public String getVenueName() { return venueName; }
-    public void setVenueName(String value) { this.venueName = value; }
-
-    public Integer getMaxTicketsPerMember() { return maxTicketsPerMember; }
-    public void setMaxTicketsPerMember(Integer value) { this.maxTicketsPerMember = value; }
+    @Builder
+    public Performance(Long performanceId, String title, Genre genre, Integer runningTime, String description, PerformanceStatus status, String venueName, Integer maxTicketsPerMember) {
+        this.performanceId = performanceId;
+        this.title = title;
+        this.genre = genre;
+        this.runningTime = runningTime;
+        this.description = description;
+        this.status = status;
+        this.venueName = venueName;
+        this.maxTicketsPerMember = maxTicketsPerMember;
+    }
 }

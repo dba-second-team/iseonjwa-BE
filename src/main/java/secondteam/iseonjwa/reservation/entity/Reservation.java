@@ -2,12 +2,19 @@ package secondteam.iseonjwa.reservation.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import secondteam.iseonjwa.member.entity.Member;
 import secondteam.iseonjwa.performance.entity.Schedule;
 import secondteam.iseonjwa.seat.entity.Seat;
 
 @Entity
 @Table(name = "reservation")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
 public class Reservation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,26 +43,15 @@ public class Reservation {
     @JoinColumn(name = "seat_id", nullable = false, foreignKey = @ForeignKey(name = "R_19"))
     private Seat seat;
 
-    protected Reservation() {}
-
-    public Long getReservationId() { return reservationId; }
-    public void setReservationId(Long value) { this.reservationId = value; }
-
-    public ReservationStatus getStatus() { return status; }
-    public void setStatus(ReservationStatus value) { this.status = value; }
-
-    public LocalDateTime getReservedAt() { return reservedAt; }
-    public void setReservedAt(LocalDateTime value) { this.reservedAt = value; }
-
-    public LocalDateTime getCanceledAt() { return canceledAt; }
-    public void setCanceledAt(LocalDateTime value) { this.canceledAt = value; }
-
-    public Member getMember() { return member; }
-    public void setMember(Member value) { this.member = value; }
-
-    public Schedule getSchedule() { return schedule; }
-    public void setSchedule(Schedule value) { this.schedule = value; }
-
-    public Seat getSeat() { return seat; }
-    public void setSeat(Seat value) { this.seat = value; }
+    @Builder
+    public Reservation(Long reservationId, ReservationStatus status, LocalDateTime reservedAt,
+                       LocalDateTime canceledAt, Member member, Schedule schedule, Seat seat) {
+        this.reservationId = reservationId;
+        this.status = status;
+        this.reservedAt = reservedAt;
+        this.canceledAt = canceledAt;
+        this.member = member;
+        this.schedule = schedule;
+        this.seat = seat;
+    }
 }
