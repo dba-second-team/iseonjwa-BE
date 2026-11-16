@@ -1,7 +1,6 @@
 package secondteam.iseonjwa.reservation.entity;
 
 import java.io.Serializable;
-import java.util.Objects;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
