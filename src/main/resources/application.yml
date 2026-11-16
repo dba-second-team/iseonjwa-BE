@@ -2,3 +2,16 @@ springdoc:
   swagger-ui:
     tags-sorter: alpha
     operations-sorter: method
+
+spring:
+  application:
+    name: iseonjwa
+  datasource:
+    url: jdbc:mysql://localhost:3306/iseonjwa
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
