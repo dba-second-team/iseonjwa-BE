@@ -118,33 +118,30 @@ VALUES
 -- ============================================
 
 INSERT INTO schedule
-(start_at, status, performance_id)
+(start_at, performance_id)
 VALUES
     (
         '2027-01-16 18:00:00',
-        'OPEN',
         @performance1_id
     );
 
 SET @schedule1_id = LAST_INSERT_ID();
 
 INSERT INTO schedule
-(start_at, status, performance_id)
+(start_at, performance_id)
 VALUES
     (
         '2027-01-17 18:00:00',
-        'OPEN',
         @performance1_id
     );
 
 SET @schedule2_id = LAST_INSERT_ID();
 
 INSERT INTO schedule
-(start_at, status, performance_id)
+(start_at, performance_id)
 VALUES
     (
         '2027-02-06 19:00:00',
-        'OPEN',
         @performance2_id
     );
 
