@@ -44,14 +44,13 @@ public class Payment {
     private Reservation reservation;
 
     @Builder
-    private Payment(Integer paidAmount, Integer cancelFee, Integer refundAmount,
-                   PaymentStatus status,LocalDateTime paidAt, LocalDateTime refundedAt, Reservation reservation) {
+    private Payment(Integer paidAmount, Reservation reservation) {
         this.paidAmount = paidAmount;
-        this.cancelFee = cancelFee;
-        this.refundAmount = refundAmount;
-        this.status = status;
-        this.paidAt = paidAt;
-        this.refundedAt = refundedAt;
+        this.cancelFee = 0;
+        this.refundAmount = 0;
+        this.status = PaymentStatus.PAID;
+        this.paidAt = LocalDateTime.now();
         this.reservation = reservation;
+        // refunded_at은 필요 시 설정
     }
 }
