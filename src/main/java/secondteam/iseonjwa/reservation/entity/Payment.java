@@ -23,10 +23,10 @@ public class Payment {
     private Integer paidAmount;
 
     @Column(name = "cancel_fee", nullable = false)
-    private Integer cancelFee = 0;
+    private Integer cancelFee;
 
     @Column(name = "refund_amount", nullable = false)
-    private Integer refundAmount = 0;
+    private Integer refundAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
