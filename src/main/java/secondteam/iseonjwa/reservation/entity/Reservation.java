@@ -1,13 +1,13 @@
 package secondteam.iseonjwa.reservation.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import secondteam.iseonjwa.member.entity.Member;
 import secondteam.iseonjwa.performance.entity.Schedule;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "reservation")
@@ -19,14 +19,6 @@ public class Reservation {
     @Column(name = "reservation_id")
     private Long reservationId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "member_id", nullable = false)
-    private Member member;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "schedule_id", nullable = false)
-    private Schedule schedule;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private ReservationStatus status;
@@ -37,13 +29,19 @@ public class Reservation {
     @Column(name = "canceled_at")
     private LocalDateTime canceledAt;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "member_id", nullable = false, foreignKey = @ForeignKey(name = "R_12"))
+    private Member member;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "schedule_id", nullable = false, foreignKey = @ForeignKey(name = "R_13"))
+    private Schedule schedule;
+
     @Builder
-    private Reservation(Member member, Schedule schedule, ReservationStatus status,
-                        LocalDateTime reservedAt, LocalDateTime canceledAt) {
+    private Reservation(Member member, Schedule schedule) {
         this.member = member;
         this.schedule = schedule;
-        this.status = status;
-        this.reservedAt = reservedAt;
-        this.canceledAt = canceledAt;
+        this.status = ReservationStatus.CONFIRMED;
+        this.reservedAt = LocalDateTime.now();
     }
 }

@@ -9,31 +9,32 @@ import secondteam.iseonjwa.seat.entity.SeatRank;
 
 @Entity
 @Table(name = "price")
-@Getter
+@IdClass(PriceId.class)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
 public class Price {
-    @EmbeddedId
-    private PriceId id;
+    @Id
+    @Column(name = "performance_id", nullable = false)
+    private Long performanceId;
 
-    @MapsId("performanceId")
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "performance_id", nullable = false)
-    private Performance performance;
-
-    @MapsId("seatRankId")
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "seat_rank_id", nullable = false)
+    @Id
+    @Enumerated(EnumType.STRING)
+    @Column(name = "seat_rank", nullable = false, length = 20)
     private SeatRank seatRank;
 
     @Column(name = "price", nullable = false)
     private Integer price;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "performance_id", insertable = false, updatable = false,
+            nullable = false, foreignKey = @ForeignKey(name = "R_6"))
+    private Performance performance;
+
     @Builder
-    private Price(Performance performance, SeatRank seatRank, Integer price) {
-        this.performance = performance;
+    private Price(SeatRank seatRank, Integer price, Performance performance) {
         this.seatRank = seatRank;
         this.price = price;
-        this.id = new PriceId(performance.getPerformanceId(), seatRank.getSeatRankId());
-        // Both references must already be persisted before constructing a Price.
+        this.performance = performance;
+        this.performanceId = performance.getPerformanceId();
     }
 }

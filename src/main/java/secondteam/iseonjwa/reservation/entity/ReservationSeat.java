@@ -5,34 +5,28 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import secondteam.iseonjwa.seat.entity.ScheduledSeat;
+import secondteam.iseonjwa.seat.entity.Seat;
 
 @Entity
 @Table(name = "reservation_seat")
+@IdClass(ReservationSeatId.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ReservationSeat {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "reservation_seat_id")
-    private Long reservationSeatId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "reservation_id", nullable = false)
+    @Id
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reservation_id", foreignKey = @ForeignKey(name = "fk_reservation_seat_reservation"))
     private Reservation reservation;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "scheduled_seat_id", nullable = false)
-    private ScheduledSeat scheduledSeat;
-
-    /** Price snapshot at the time of booking. */
-    @Column(name = "price", nullable = false)
-    private Integer price;
+    @Id
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "seat_id", foreignKey = @ForeignKey(name = "fk_reservation_seat_seat"))
+    private Seat seat;
 
     @Builder
-    private ReservationSeat(Reservation reservation, ScheduledSeat scheduledSeat, Integer price) {
+    private ReservationSeat(Reservation reservation, Seat seat) {
         this.reservation = reservation;
-        this.scheduledSeat = scheduledSeat;
-        this.price = price;
+        this.seat = seat;
     }
 }
