@@ -1,4 +1,3 @@
-
 -- ============================================
 -- V3__seed_data.sql
 -- 이선좌 공연 예매 시스템 테스트 데이터
@@ -9,7 +8,7 @@
 --
 -- 주의: 빈 테이블을 기준으로 최초 1회 실행
 -- running_time의 단위는 분(MINUTES)
--- 비밀번호는 로그인용 해시가 아닌 테스트 문자열
+-- 테스트 계정 비밀번호: Demo1234! (BCrypt 해시로 저장)
 
 
 -- ============================================
@@ -18,7 +17,7 @@
 -- ============================================
 
 INSERT INTO member
-    (email, name, phone, role, created_at, password)
+(email, name, phone, role, created_at, password)
 VALUES
     (
         'demo.user@example.com',
@@ -32,7 +31,7 @@ VALUES
 SET @demo_member_id = LAST_INSERT_ID();
 
 INSERT INTO member
-    (email, name, phone, role, created_at, password)
+(email, name, phone, role, created_at, password)
 VALUES
     (
         'demo.admin@example.com',
@@ -50,15 +49,15 @@ VALUES
 -- ============================================
 
 INSERT INTO performance
-    (
-        title,
-        genre,
-        running_time,
-        description,
-        status,
-        venue_name,
-        max_tickets_per_member
-    )
+(
+    title,
+    genre,
+    running_time,
+    description,
+    status,
+    venue_name,
+    max_tickets_per_member
+)
 VALUES
     (
         '이선좌 K-POP LIVE',
@@ -73,22 +72,22 @@ VALUES
 SET @performance1_id = LAST_INSERT_ID();
 
 INSERT INTO performance
-    (
-        title,
-        genre,
-        running_time,
-        description,
-        status,
-        venue_name,
-        max_tickets_per_member
-    )
+(
+    title,
+    genre,
+    running_time,
+    description,
+    status,
+    venue_name,
+    max_tickets_per_member
+)
 VALUES
     (
         '이선좌 HIPHOP & R&B NIGHT',
         'HIPHOP_RANDB',
         90,
         'DB 실습용 힙합 공연',
-        'UPCOMING',
+        'ON_SALE',
         '이선좌 공연장 B',
         2
     );
@@ -102,7 +101,7 @@ SET @performance2_id = LAST_INSERT_ID();
 -- ============================================
 
 INSERT INTO price
-    (performance_id, seat_rank, price)
+(performance_id, seat_rank, price)
 VALUES
     (@performance1_id, 'FS', 180000),
     (@performance1_id, 'VIP', 150000),
@@ -119,7 +118,7 @@ VALUES
 -- ============================================
 
 INSERT INTO schedule
-    (start_at, status, performance_id)
+(start_at, status, performance_id)
 VALUES
     (
         '2027-01-16 18:00:00',
@@ -130,7 +129,7 @@ VALUES
 SET @schedule1_id = LAST_INSERT_ID();
 
 INSERT INTO schedule
-    (start_at, status, performance_id)
+(start_at, status, performance_id)
 VALUES
     (
         '2027-01-17 18:00:00',
@@ -141,7 +140,7 @@ VALUES
 SET @schedule2_id = LAST_INSERT_ID();
 
 INSERT INTO schedule
-    (start_at, status, performance_id)
+(start_at, status, performance_id)
 VALUES
     (
         '2027-02-06 19:00:00',
@@ -153,22 +152,66 @@ SET @schedule3_id = LAST_INSERT_ID();
 
 
 -- ============================================
--- 5. SEAT
+-- 5. RESERVATION
+-- 확정된 예매 2건
+-- ============================================
+
+INSERT INTO reservation
+(
+    status,
+    reserved_at,
+    canceled_at,
+    member_id,
+    schedule_id
+)
+VALUES
+    (
+        'CONFIRMED',
+        '2026-11-10 10:00:00',
+        NULL,
+        @demo_member_id,
+        @schedule1_id
+    );
+
+SET @reservation1_id = LAST_INSERT_ID();
+
+INSERT INTO reservation
+(
+    status,
+    reserved_at,
+    canceled_at,
+    member_id,
+    schedule_id
+)
+VALUES
+    (
+        'CONFIRMED',
+        '2026-11-12 10:00:00',
+        NULL,
+        @demo_member_id,
+        @schedule3_id
+    );
+
+SET @reservation2_id = LAST_INSERT_ID();
+
+
+-- ============================================
+-- 6. SEAT
 -- 회차당 좌석 4개, 총 12개
 -- ============================================
 
 -- 첫 번째 회차: FS 좌석 1개
 INSERT INTO seat
-    (
-        section,
-        row_num,
-        seat_num,
-        seat_rank,
-        status,
-        held_until,
-        held_by,
-        schedule_id
-    )
+(
+    section,
+    row_num,
+    seat_num,
+    seat_rank,
+    status,
+    held_until,
+    held_by,
+    schedule_id
+)
 VALUES
     (
         'F1',
@@ -185,16 +228,16 @@ SET @seat1_id = LAST_INSERT_ID();
 
 -- 나머지 좌석 11개
 INSERT INTO seat
-    (
-        section,
-        row_num,
-        seat_num,
-        seat_rank,
-        status,
-        held_until,
-        held_by,
-        schedule_id
-    )
+(
+    section,
+    row_num,
+    seat_num,
+    seat_rank,
+    status,
+    held_until,
+    held_by,
+    schedule_id
+)
 VALUES
     -- 첫 번째 회차
     ('F2', '1', 2, 'FS', 'AVAILABLE', NULL, NULL, @schedule1_id),
@@ -224,51 +267,15 @@ WHERE schedule_id = @schedule3_id
 
 
 -- ============================================
--- 6. RESERVATION
--- 확정된 예매 2건
+-- 7. RESERVATION_SEAT
+-- 예매-좌석 연결 2건
 -- ============================================
 
-INSERT INTO reservation
-    (
-        status,
-        reserved_at,
-        canceled_at,
-        member_id,
-        schedule_id,
-        seat_id
-    )
+INSERT INTO reservation_seat
+(reservation_id, seat_id)
 VALUES
-    (
-        'CONFIRMED',
-        '2026-12-20 10:00:00',
-        NULL,
-        @demo_member_id,
-        @schedule1_id,
-        @seat1_id
-    );
-
-SET @reservation1_id = LAST_INSERT_ID();
-
-INSERT INTO reservation
-    (
-        status,
-        reserved_at,
-        canceled_at,
-        member_id,
-        schedule_id,
-        seat_id
-    )
-VALUES
-    (
-        'CONFIRMED',
-        '2027-01-10 10:00:00',
-        NULL,
-        @demo_member_id,
-        @schedule3_id,
-        @seat2_id
-    );
-
-SET @reservation2_id = LAST_INSERT_ID();
+    (@reservation1_id, @seat1_id),
+    (@reservation2_id, @seat2_id);
 
 
 -- 예매 확정된 좌석 상태 변경
@@ -278,27 +285,27 @@ WHERE seat_id IN (@seat1_id, @seat2_id);
 
 
 -- ============================================
--- 7. PAYMENT
+-- 8. PAYMENT
 -- 결제 2건
 -- ============================================
 
 INSERT INTO payment
-    (
-        paid_amount,
-        cancel_fee,
-        refund_amount,
-        status,
-        paid_at,
-        refunded_at,
-        reservation_id
-    )
+(
+    paid_amount,
+    cancel_fee,
+    refund_amount,
+    status,
+    paid_at,
+    refunded_at,
+    reservation_id
+)
 VALUES
     (
         180000,
         0,
         0,
         'PAID',
-        '2026-12-20 10:01:00',
+        '2026-11-10 10:01:00',
         NULL,
         @reservation1_id
     ),
@@ -307,7 +314,7 @@ VALUES
         0,
         0,
         'PAID',
-        '2027-01-10 10:01:00',
+        '2026-11-12 10:01:00',
         NULL,
         @reservation2_id
     );

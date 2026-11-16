@@ -2,19 +2,17 @@ package secondteam.iseonjwa.reservation.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import secondteam.iseonjwa.member.entity.Member;
 import secondteam.iseonjwa.performance.entity.Schedule;
-import secondteam.iseonjwa.seat.entity.Seat;
 
 @Entity
 @Table(name = "reservation")
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Reservation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,19 +37,11 @@ public class Reservation {
     @JoinColumn(name = "schedule_id", nullable = false, foreignKey = @ForeignKey(name = "R_13"))
     private Schedule schedule;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "seat_id", nullable = false, foreignKey = @ForeignKey(name = "R_19"))
-    private Seat seat;
-
     @Builder
-    public Reservation(Long reservationId, ReservationStatus status, LocalDateTime reservedAt,
-                       LocalDateTime canceledAt, Member member, Schedule schedule, Seat seat) {
-        this.reservationId = reservationId;
-        this.status = status;
-        this.reservedAt = reservedAt;
-        this.canceledAt = canceledAt;
+    private Reservation(Member member, Schedule schedule) {
         this.member = member;
         this.schedule = schedule;
-        this.seat = seat;
+        this.status = ReservationStatus.CONFIRMED;
+        this.reservedAt = LocalDateTime.now();
     }
 }
