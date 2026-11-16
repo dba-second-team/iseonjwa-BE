@@ -4,11 +4,11 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "performance")
-@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class Performance {
     @Id
@@ -40,8 +40,8 @@ public class Performance {
     private Integer maxTicketsPerMember;
 
     @Builder
-    public Performance(Long performanceId, String title, Genre genre, Integer runningTime, String description, PerformanceStatus status, String venueName, Integer maxTicketsPerMember) {
-        this.performanceId = performanceId;
+    private Performance(String title, Genre genre, Integer runningTime, String description, PerformanceStatus status,
+                       String venueName, Integer maxTicketsPerMember) {
         this.title = title;
         this.genre = genre;
         this.runningTime = runningTime;

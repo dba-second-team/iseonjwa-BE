@@ -44,9 +44,8 @@ public class Payment {
     private Reservation reservation;
 
     @Builder
-    public Payment(Long paymentId, Integer paidAmount, Integer cancelFee, Integer refundAmount,
+    private Payment(Integer paidAmount, Integer cancelFee, Integer refundAmount,
                    PaymentStatus status,LocalDateTime paidAt, LocalDateTime refundedAt, Reservation reservation) {
-        this.paymentId = paymentId;
         this.paidAmount = paidAmount;
         this.cancelFee = cancelFee;
         this.refundAmount = refundAmount;

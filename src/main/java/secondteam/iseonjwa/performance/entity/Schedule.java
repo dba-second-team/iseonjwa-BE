@@ -30,8 +30,7 @@ public class Schedule {
     private Performance performance;
 
     @Builder
-    public Schedule(Long scheduleId, LocalDateTime startAt, String status, Performance performance) {
-        this.scheduleId = scheduleId;
+    private Schedule(LocalDateTime startAt, String status, Performance performance) {
         this.startAt = startAt;
         this.status = status;
         this.performance = performance;

@@ -4,12 +4,12 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "price")
 @IdClass(PriceId.class)
-@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class Price {
     @Id
@@ -30,10 +30,10 @@ public class Price {
     private Performance performance;
 
     @Builder
-    public Price(Long performanceId, PriceSeatRank seatRank, Integer price, Performance performance) {
-        this.performanceId = performanceId;
+    private Price(PriceSeatRank seatRank, Integer price, Performance performance) {
         this.seatRank = seatRank;
         this.price = price;
         this.performance = performance;
+        this.performanceId = performance.getPerformanceId();
     }
 }
