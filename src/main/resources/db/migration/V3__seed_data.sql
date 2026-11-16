@@ -26,7 +26,7 @@ VALUES
         '01012345678',
         'USER',
         '2026-11-16 09:00:00',
-        'TEST_ONLY_NOT_A_REAL_PASSWORD_HASH'
+        '$2a$10$.tD8wL83k7K3LGd0S/GQ7u8sYawsYeALHikOFn4RfdKrKdtgEy55u' -- Demo1234!
     );
 
 SET @demo_member_id = LAST_INSERT_ID();
@@ -40,7 +40,7 @@ VALUES
         '01087654321',
         'ADMIN',
         '2026-11-16 09:00:00',
-        'TEST_ONLY_NOT_A_REAL_PASSWORD_HASH'
+        '$2a$10$.tD8wL83k7K3LGd0S/GQ7u8sYawsYeALHikOFn4RfdKrKdtgEy55u' -- Demo1234!
     );
 
 
