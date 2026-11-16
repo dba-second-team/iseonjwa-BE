@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import secondteam.iseonjwa.seat.entity.SeatRank;
 
 @Entity
 @Table(name = "price")
@@ -19,7 +20,7 @@ public class Price {
     @Id
     @Enumerated(EnumType.STRING)
     @Column(name = "seat_rank", nullable = false, length = 20)
-    private PriceSeatRank seatRank;
+    private SeatRank seatRank;
 
     @Column(name = "price", nullable = false)
     private Integer price;
@@ -30,7 +31,7 @@ public class Price {
     private Performance performance;
 
     @Builder
-    private Price(PriceSeatRank seatRank, Integer price, Performance performance) {
+    private Price(SeatRank seatRank, Integer price, Performance performance) {
         this.seatRank = seatRank;
         this.price = price;
         this.performance = performance;
