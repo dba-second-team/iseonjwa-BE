@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import secondteam.iseonjwa.seat.entity.SeatRank;
 
 import java.io.Serializable;
-import java.util.Objects;
 
 @NoArgsConstructor
 @AllArgsConstructor
