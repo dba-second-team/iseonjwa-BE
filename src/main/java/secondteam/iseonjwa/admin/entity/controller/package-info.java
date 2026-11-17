@@ -1,1 +1,0 @@
-package secondteam.iseonjwa.admin.entity.controller;
