@@ -1,7 +1,8 @@
-
 package secondteam.iseonjwa.performance.entity;
 
 public enum Genre {
-    MUSICAL,
-    CONCERT
+    K_POP,
+    HIPHOP_RANDB,
+    VALLAD,
+    ETC
 }
