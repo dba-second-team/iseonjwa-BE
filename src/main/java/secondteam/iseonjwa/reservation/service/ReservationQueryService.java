@@ -109,13 +109,12 @@ public class ReservationQueryService {
         return new MyReservationResponse(items, page, size, result.getTotalElements());
     }
 
-    /** Seat 엔티티를 응답용 좌석 정보로 변환한다. (rowNum -> row, seatNum -> number, seatRank -> grade) */
+    /** Seat 엔티티를 응답용 좌석 정보로 변환한다. (rowNum -> row, seatNum -> number) */
     private MyReservationResponse.SeatInfo toSeatInfo(Seat seat) {
         return new MyReservationResponse.SeatInfo(
                 seat.getSection().name(),
                 seat.getRowNum(),
-                seat.getSeatNum(),
-                seat.getSeatRank().name());
+                seat.getSeatNum());
     }
 
     /** 시간대가 없는 LocalDateTime을 한국 시간(+09:00)이 붙은 OffsetDateTime으로 변환한다. */

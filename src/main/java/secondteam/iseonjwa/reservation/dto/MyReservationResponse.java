@@ -19,7 +19,7 @@ public record MyReservationResponse(List<Item> items, int page, int size, long t
     ) {
     }
 
-    public record SeatInfo(String section, String row, int number, String grade) {
+    public record SeatInfo(String section, String row, int number) {
     }
 }
 
