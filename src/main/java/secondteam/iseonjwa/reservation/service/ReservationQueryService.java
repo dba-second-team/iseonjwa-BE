@@ -71,7 +71,9 @@ public class ReservationQueryService {
         // 4. 예매 목록 조회 (예매 + 회차 + 공연을 한 번에 가져온다), 최신 예매순 정렬
         Page<Reservation> result = reservationRepository.findMine(
                 memberId, statuses,
-                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "reservedAt")));
+                PageRequest.of(page, size, Sort.by(
+                        Sort.Order.desc("reservedAt"),
+                        Sort.Order.desc("reservationId"))));  // 예매 시각이 같아도 순서가 고정되도록 ID로 한 번 더 정렬
 
         // 5. 이번 페이지 예매들의 ID 모음 (아래 좌석/결제를 한 번에 조회하기 위함)
         List<Long> ids = result.getContent().stream().map(Reservation::getReservationId).toList();
