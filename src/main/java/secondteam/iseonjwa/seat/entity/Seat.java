@@ -31,10 +31,6 @@ public class Seat {
     private Integer seatNum;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "seat_rank", nullable = false, length = 20)
-    private SeatRank seatRank;
-
-    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private SeatStatus status;
 
@@ -50,12 +46,10 @@ public class Seat {
     private Schedule schedule;
 
     @Builder
-    private Seat(SeatSection section, String rowNum, Integer seatNum,
-                 SeatRank seatRank, Schedule schedule) {
+    private Seat(SeatSection section, String rowNum, Integer seatNum, Schedule schedule) {
         this.section = section;
         this.rowNum = rowNum;
         this.seatNum = seatNum;
-        this.seatRank = seatRank;
         this.schedule = schedule;
         this.status = SeatStatus.AVAILABLE;
         // held_until, held_by는 선점 시 설정
