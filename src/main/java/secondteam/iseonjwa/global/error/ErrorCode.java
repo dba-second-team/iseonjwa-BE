@@ -31,6 +31,9 @@ public enum ErrorCode {
     HOLD_EXPIRED(HttpStatus.CONFLICT, "좌석 선점 시간이 만료되었거나 선점한 좌석이 아닙니다."),
     ALREADY_CANCELED(HttpStatus.CONFLICT, "이미 취소된 예매입니다."),
     CANCEL_NOT_ALLOWED(HttpStatus.CONFLICT, "공연 당일에는 예매를 취소할 수 없습니다."),
+    REFUND_NOT_PENDING(HttpStatus.CONFLICT, "환불 대기 중인 예매만 처리할 수 있습니다."),
+    INVALID_REFUND_AMOUNT(HttpStatus.CONFLICT, "저장된 취소 수수료로 환불 금액을 계산할 수 없습니다."),
+    REFUND_SEAT_CONFLICT(HttpStatus.CONFLICT, "현재 좌석 점유 정보가 예매 내역과 일치하지 않습니다."),
     SCHEDULE_CONFLICT(HttpStatus.CONFLICT, "같은 공연장에 시간이 겹치는 회차가 있습니다.")
     ;
 
