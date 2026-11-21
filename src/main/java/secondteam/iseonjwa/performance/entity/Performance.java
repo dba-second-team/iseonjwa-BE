@@ -29,6 +29,9 @@ public class Performance {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "poster_key", length = 255)
+    private String posterKey;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private PerformanceStatus status;
@@ -41,7 +44,7 @@ public class Performance {
 
     @Builder
     private Performance(String title, Genre genre, Integer runningTime, String description, PerformanceStatus status,
-                       String venueName, Integer maxTicketsPerMember) {
+                       String venueName, Integer maxTicketsPerMember, String posterKey) {
         this.title = title;
         this.genre = genre;
         this.runningTime = runningTime;
@@ -49,5 +52,6 @@ public class Performance {
         this.status = status;
         this.venueName = venueName;
         this.maxTicketsPerMember = maxTicketsPerMember;
+        this.posterKey = posterKey;
     }
 }
