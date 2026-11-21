@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import secondteam.iseonjwa.global.error.BusinessException;
 import secondteam.iseonjwa.global.error.ErrorCode;
+import secondteam.iseonjwa.member.dto.EmailCheckResponse;
 import secondteam.iseonjwa.member.dto.LogInRequest;
 import secondteam.iseonjwa.member.dto.LogInResponse;
 import secondteam.iseonjwa.member.dto.SignUpRequest;
@@ -52,6 +53,10 @@ public class MemberService {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
         return LogInResponse.from(member);
+    }
+
+    public EmailCheckResponse checkEmail(String email) {
+        return new EmailCheckResponse(!memberRepository.existsByEmail(email));
     }
 
     private Member authenticate(LogInRequest request) {
