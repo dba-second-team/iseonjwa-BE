@@ -3,8 +3,10 @@ package secondteam.iseonjwa.global.error;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -26,6 +28,20 @@ public class GlobalExceptionHandler {
     // X-Member-Id 같은 필수 헤더 누락
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<ErrorResponse> handleMissingHeader(MissingRequestHeaderException e) {
+        ErrorCode code = ErrorCode.INVALID_REQUEST;
+        return ResponseEntity.status(code.getStatus()).body(ErrorResponse.of(code));
+    }
+
+    // @RequestParam, @PathVariable 검증 실패
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponse> handleMethodValidation(HandlerMethodValidationException e) {
+        ErrorCode code = ErrorCode.INVALID_REQUEST;
+        return ResponseEntity.status(code.getStatus()).body(ErrorResponse.of(code));
+    }
+
+    // 필수 쿼리 파라미터 누락
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParam(MissingServletRequestParameterException e) {
         ErrorCode code = ErrorCode.INVALID_REQUEST;
         return ResponseEntity.status(code.getStatus()).body(ErrorResponse.of(code));
     }
