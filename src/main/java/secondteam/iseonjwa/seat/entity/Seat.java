@@ -2,7 +2,7 @@ package secondteam.iseonjwa.seat.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
- import lombok.AccessLevel;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -59,5 +59,16 @@ public class Seat {
         this.schedule = schedule;
         this.status = SeatStatus.AVAILABLE;
         // held_until, held_by는 선점 시 설정
+    }
+
+    public boolean canBeHeldAt(LocalDateTime now) {
+        return status == SeatStatus.AVAILABLE
+                || (status == SeatStatus.HELD && heldUntil != null && !heldUntil.isAfter(now));
+    }
+
+    public void hold(Member member, LocalDateTime until) {
+        status = SeatStatus.HELD;
+        heldBy = member;
+        heldUntil = until;
     }
 }
