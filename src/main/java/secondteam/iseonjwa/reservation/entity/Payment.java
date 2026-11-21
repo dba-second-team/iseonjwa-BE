@@ -43,6 +43,16 @@ public class Payment {
             foreignKey = @ForeignKey(name = "R_16"))
     private Reservation reservation;
 
+    /**
+     * 취소 시점의 수수료와 환불액을 기록하고 "환불 진행 중"(CANCELED)으로 바꾼다.
+     * 관리자가 환불을 완료하면 REFUNDED가 된다.
+     */
+    public void cancel(int cancelFee, int refundAmount) {
+        this.cancelFee = cancelFee;
+        this.refundAmount = refundAmount;
+        this.status = PaymentStatus.CANCELED;
+    }
+
     @Builder
     private Payment(Integer paidAmount, Reservation reservation) {
         this.paidAmount = paidAmount;
