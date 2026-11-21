@@ -38,7 +38,10 @@ public class MemberService {
             Member saved = memberRepository.saveAndFlush(member);
             return SignUpResponse.from(saved);
         } catch (DataIntegrityViolationException e) {
-            throw new BusinessException(ErrorCode.EMAIL_DUPLICATED);
+            if (isEmailDuplicate(e)) {
+                throw new BusinessException(ErrorCode.EMAIL_DUPLICATED);
+            }
+            throw e;
         }
     }
 
@@ -68,5 +71,10 @@ public class MemberService {
         }
 
         return member;
+    }
+
+    private boolean isEmailDuplicate(DataIntegrityViolationException e) {
+        String message = e.getMostSpecificCause().getMessage();
+        return message != null && message.toUpperCase().contains("AK_MEMBER_EMAIL");
     }
 }
