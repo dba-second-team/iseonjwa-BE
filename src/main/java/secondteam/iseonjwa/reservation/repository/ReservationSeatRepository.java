@@ -12,8 +12,9 @@ public interface ReservationSeatRepository extends JpaRepository<ReservationSeat
 
     @Query("""
             select rs from ReservationSeat rs
-            join fetch rs.seat
+            join fetch rs.seat s
             where rs.reservation.reservationId in :ids
+            order by s.section asc, length(s.rowNum) asc, s.rowNum asc, s.seatNum asc
             """)
     List<ReservationSeat> findAllByReservationIds(@Param("ids") List<Long> ids);
 }

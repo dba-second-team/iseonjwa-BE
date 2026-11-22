@@ -6,6 +6,7 @@ import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 @RestControllerAdvice
@@ -28,6 +29,13 @@ public class GlobalExceptionHandler {
     // X-Member-Id 같은 필수 헤더 누락
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<ErrorResponse> handleMissingHeader(MissingRequestHeaderException e) {
+        ErrorCode code = ErrorCode.INVALID_REQUEST;
+        return ResponseEntity.status(code.getStatus()).body(ErrorResponse.of(code));
+    }
+
+    // 헤더/쿼리/경로 파라미터 타입 변환 실패 (예: 숫자 자리에 문자열 입력)
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
         ErrorCode code = ErrorCode.INVALID_REQUEST;
         return ResponseEntity.status(code.getStatus()).body(ErrorResponse.of(code));
     }

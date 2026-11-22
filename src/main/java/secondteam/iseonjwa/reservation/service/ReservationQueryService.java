@@ -12,7 +12,6 @@ import secondteam.iseonjwa.member.repository.MemberRepository;
 import secondteam.iseonjwa.reservation.dto.MyReservationResponse;
 import secondteam.iseonjwa.reservation.entity.Payment;
 import secondteam.iseonjwa.reservation.entity.Reservation;
-import secondteam.iseonjwa.reservation.entity.ReservationStatus;
 import secondteam.iseonjwa.reservation.repository.PaymentRepository;
 import secondteam.iseonjwa.reservation.repository.ReservationRepository;
 import secondteam.iseonjwa.reservation.repository.ReservationSeatRepository;
@@ -23,6 +22,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -48,12 +48,11 @@ public class ReservationQueryService {
      * 헤더의 회원이 한 예매 목록을 최신 예매순으로 조회한다.
      *
      * @param memberId 요청한 회원 ID (헤더 X-Member-Id)
-     * @param status   조회할 예매 상태. null이면 CONFIRMED, CANCELED 모두 조회
      * @param page     페이지 번호 (0부터 시작)
      * @param size     한 페이지에 보여줄 개수
      * @throws BusinessException page/size가 잘못되면 INVALID_REQUEST, 회원이 없으면 MEMBER_NOT_FOUND
      */
-    public MyReservationResponse getMyReservations(Long memberId, ReservationStatus status, int page, int size) {
+    public MyReservationResponse getMyReservations(Long memberId, int page, int size) {
         // 1. 요청값 검증: 음수 페이지, 0 이하의 size는 허용하지 않는다.
         if (page < 0 || size < 1) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
@@ -63,22 +62,17 @@ public class ReservationQueryService {
             throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
         }
 
-        // 3. 조회할 상태 결정: 필터가 없으면 확정/취소 예매를 모두 보여준다. (PENDING은 제외)
-        List<ReservationStatus> statuses = (status == null)
-                ? List.of(ReservationStatus.CONFIRMED, ReservationStatus.CANCELED)
-                : List.of(status);
-
-        // 4. 예매 목록 조회 (예매 + 회차 + 공연을 한 번에 가져온다), 최신 예매순 정렬
+        // 3. 예매 목록 조회 (예매 + 회차 + 공연을 한 번에 가져온다, PENDING 제외), 최신 예매순 정렬
         Page<Reservation> result = reservationRepository.findMine(
-                memberId, statuses,
+                memberId,
                 PageRequest.of(page, size, Sort.by(
                         Sort.Order.desc("reservedAt"),
                         Sort.Order.desc("reservationId"))));  // 예매 시각이 같아도 순서가 고정되도록 ID로 한 번 더 정렬
 
-        // 5. 이번 페이지 예매들의 ID 모음 (아래 좌석/결제를 한 번에 조회하기 위함)
+        // 4. 이번 페이지 예매들의 ID 모음 (아래 좌석/결제를 한 번에 조회하기 위함)
         List<Long> ids = result.getContent().stream().map(Reservation::getReservationId).toList();
 
-        // 6. 좌석 조회: 예매 ID별로 좌석 목록을 묶는다. (예매마다 따로 조회하면 쿼리가 많아지는 N+1을 피한다)
+        // 5. 좌석 조회: 예매 ID별로 좌석 목록을 묶는다. (예매마다 따로 조회하면 쿼리가 많아지는 N+1을 피한다)
         //    좌석은 한 예매에 여러 개라서 페이징 쿼리와 합치지 않고 따로 가져온다.
         Map<Long, List<MyReservationResponse.SeatInfo>> seatsByReservation = ids.isEmpty() ? Map.of()
                 : reservationSeatRepository.findAllByReservationIds(ids).stream()
@@ -86,28 +80,31 @@ public class ReservationQueryService {
                         rs -> rs.getReservation().getReservationId(),
                         Collectors.mapping(rs -> toSeatInfo(rs.getSeat()), Collectors.toList())));
 
-        // 7. 결제 금액 조회: 예매 ID -> 결제 금액(totalAmount). 예매 1건당 결제는 1건이다.
-        Map<Long, Integer> amountByReservation = ids.isEmpty() ? Map.of()
+        // 6. 결제 정보 조회: 예매 ID -> 결제(금액 + 환불/결제 상태). 예매 1건당 결제는 1건이다.
+        Map<Long, Payment> paymentByReservation = ids.isEmpty() ? Map.of()
                 : paymentRepository.findByReservationReservationIdIn(ids).stream()
                 .collect(Collectors.toMap(
                         p -> p.getReservation().getReservationId(),
-                        Payment::getPaidAmount));
+                        Function.identity()));
 
-        // 8. 응답 항목 조립: 예매 + 공연 정보 + 좌석 목록 + 결제 금액
-        //    공연 정보는 예매 -> 회차(schedule) -> 공연(performance)을 따라가서 꺼낸다.
+        // 7. 응답 항목 조립: 예매 + 회차 ID + 공연 정보 + 좌석 목록 + 결제 금액/결제 상태
         List<MyReservationResponse.Item> items = result.getContent().stream()
-                .map(r -> new MyReservationResponse.Item(
-                        r.getReservationId(),
-                        r.getSchedule().getPerformance().getTitle(),
-                        r.getSchedule().getPerformance().getVenueName(),
-                        toOffset(r.getSchedule().getStartAt()),
-                        seatsByReservation.getOrDefault(r.getReservationId(), List.of()),
-                        amountByReservation.getOrDefault(r.getReservationId(), 0),
-                        r.getStatus(),
-                        toOffset(r.getReservedAt())))
+                .map(r -> {
+                    Payment payment = paymentByReservation.get(r.getReservationId());
+                    return new MyReservationResponse.Item(
+                            r.getReservationId(),
+                            r.getSchedule().getScheduleId(),
+                            r.getSchedule().getPerformance().getTitle(),
+                            r.getSchedule().getPerformance().getVenueName(),
+                            toOffset(r.getSchedule().getStartAt()),
+                            seatsByReservation.getOrDefault(r.getReservationId(), List.of()),
+                            payment != null ? payment.getPaidAmount() : 0,
+                            payment != null ? payment.getStatus() : null,
+                            toOffset(r.getReservedAt()));
+                })
                 .toList();
 
-        // 9. totalCount는 이번 페이지 개수가 아니라, 조건에 맞는 전체 예매 건수다.
+        // 8. totalCount는 이번 페이지 개수가 아니라, 조건에 맞는 전체 예매 건수다.
         return new MyReservationResponse(items, page, size, result.getTotalElements());
     }
 
