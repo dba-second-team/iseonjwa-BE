@@ -72,7 +72,8 @@ public class ReservationConfirmService {
         validateRequest(request);
 
         // 1. 회원 및 회차(공연 포함) 존재 확인
-        Member member = memberRepository.findById(memberId)
+        // 선점과 동일하게 회원을 먼저 잠가 회차별 잔여 매수 계산과 예매 확정을 직렬화한다.
+        Member member = memberRepository.findByMemberId(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Schedule schedule = scheduleRepository.findByIdWithPerformance(request.scheduleId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));

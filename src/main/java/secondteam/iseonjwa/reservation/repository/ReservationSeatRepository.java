@@ -31,4 +31,12 @@ public interface ReservationSeatRepository extends JpaRepository<ReservationSeat
             order by s.seatId asc
             """)
     List<Seat> findSeatsForUpdate(@Param("reservationId") Long reservationId);
+
+    @Query("""
+            select count(distinct rs.seat.seatId) from ReservationSeat rs
+            join rs.reservation r
+            where r.member.memberId = :memberId and r.schedule.scheduleId = :scheduleId
+                and r.status = secondteam.iseonjwa.reservation.entity.ReservationStatus.CONFIRMED
+            """)
+    long countConfirmedSeats(@Param("memberId") Long memberId, @Param("scheduleId") Long scheduleId);
 }

@@ -45,6 +45,11 @@ public class Seat {
     @JoinColumn(name = "schedule_id", nullable = false, foreignKey = @ForeignKey(name = "R_18"))
     private Schedule schedule;
 
+    public boolean canBeHeldAt(LocalDateTime now) {
+        return status == SeatStatus.AVAILABLE
+                || (status == SeatStatus.HELD && heldUntil != null && !isHoldValidAt(now));
+    }
+
     /** 좌석을 선점(HELD) 상태로 바꾸고 선점한 회원과 만료 시각을 기록한다. */
     public void hold(Member member, LocalDateTime until) {
         this.status = SeatStatus.HELD;

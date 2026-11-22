@@ -7,7 +7,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import secondteam.iseonjwa.seat.entity.Seat;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface SeatRepository extends JpaRepository<Seat, Long> {
 
@@ -19,4 +21,16 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
             order by s.seatId asc
             """)
     List<Seat> findAllByIdInForUpdate(@Param("seatIds") List<Long> seatIds);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from Seat s where s.seatId = :seatId")
+    Optional<Seat> findByIdForUpdate(@Param("seatId") Long seatId);
+
+    @Query("""
+            select count(s) from Seat s
+            where s.heldBy.memberId = :memberId and s.schedule.scheduleId = :scheduleId
+                and s.status = secondteam.iseonjwa.seat.entity.SeatStatus.HELD and s.heldUntil > :now
+            """)
+    long countActiveHolds(@Param("memberId") Long memberId, @Param("scheduleId") Long scheduleId,
+                          @Param("now") LocalDateTime now);
 }
