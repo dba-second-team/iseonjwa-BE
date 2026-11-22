@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +24,7 @@ import secondteam.iseonjwa.queue.dto.QueueStatusResponse;
 import secondteam.iseonjwa.queue.dto.WaitingQueueRegisterRequest;
 import secondteam.iseonjwa.queue.dto.WaitingQueueRegisterResponse;
 import secondteam.iseonjwa.queue.service.ActiveQueueService;
+import secondteam.iseonjwa.queue.service.QueueLeaveService;
 import secondteam.iseonjwa.queue.service.QueueStatusService;
 import secondteam.iseonjwa.queue.service.WaitingQueueService;
 
@@ -35,6 +37,7 @@ public class QueueController {
     private final WaitingQueueService waitingQueueService;
     private final QueueStatusService queueStatusService;
     private final ActiveQueueService activeQueueService;
+    private final QueueLeaveService queueLeaveService;
 
     @PostMapping("/waiting")
     @ResponseStatus(HttpStatus.CREATED)
@@ -55,6 +58,13 @@ public class QueueController {
             @RequestHeader("X-Member-Id") Long memberId,
             @RequestBody @Valid ActiveQueueEnterRequest request) {
         return ApiResponse.ok(activeQueueService.enter(memberId, request));
+    }
+
+    @DeleteMapping
+    public ApiResponse<Void> leaveQueue(
+            @RequestHeader("X-Member-Id") Long memberId) {
+        queueLeaveService.leave(memberId);
+        return ApiResponse.ok(null);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

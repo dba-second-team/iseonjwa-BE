@@ -507,6 +507,21 @@ class WaitingQueueControllerTest {
             return new ActiveQueueAdmission(now, expiresAt);
         }
 
+        @Override
+        public synchronized void leaveQueue(long memberId) {
+            MemberState existing = memberStates.remove(memberId);
+            if (existing != null) {
+                LinkedHashSet<Long> waiting = waitingQueues.get(existing.performanceId());
+                if (waiting != null) {
+                    waiting.remove(memberId);
+                }
+                Map<Long, Long> active = activeQueues.get(existing.performanceId());
+                if (active != null) {
+                    active.remove(memberId);
+                }
+            }
+        }
+
         synchronized void putActiveForTest(long memberId, long performanceId, Instant expiresAt) {
             long expMillis = expiresAt.toEpochMilli();
             long admMillis = expMillis - 600_000L;

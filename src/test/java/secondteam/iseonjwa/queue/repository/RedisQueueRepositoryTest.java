@@ -231,4 +231,30 @@ class RedisQueueRepositoryTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CANNOT_ENTER_ACTIVE_QUEUE);
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void leavesQueuePassingExpectedKeysAndPrefixes() {
+        when(stringRedisTemplate.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(1L);
+
+        redisQueueRepository.leaveQueue(13L);
+
+        ArgumentCaptor<RedisScript<Long>> scriptCaptor = ArgumentCaptor.forClass(RedisScript.class);
+        ArgumentCaptor<List<String>> keysCaptor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
+
+        verify(stringRedisTemplate).execute(scriptCaptor.capture(), keysCaptor.capture(), argsCaptor.capture());
+
+        assertThat(keysCaptor.getValue()).containsExactly("queue:member:13");
+        assertThat(argsCaptor.getValue()).containsExactly(
+                "13",
+                "queue:waiting:",
+                "queue:active:"
+        );
+        assertThat(scriptCaptor.getValue().getScriptAsString())
+                .contains("HGET")
+                .contains("ZREM")
+                .contains("DEL");
+    }
 }

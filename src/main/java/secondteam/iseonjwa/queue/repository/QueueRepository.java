@@ -44,4 +44,13 @@ public interface QueueRepository {
             Instant expiresAt,
             long maxActiveSize
     );
+
+    /**
+     * 회원을 현재 참여 중인 대기열({@code waiting_queue}) 또는 예매 작업열({@code active_queue})과
+     * 회원 상태 해시({@code queue:member:{memberId}})에서 원자적으로 즉시 제거한다.
+     * 이미 큐에 없거나 만료된 경우에도 아무 부작용 없이 멱등하게 완료된다.
+     *
+     * @param memberId 퇴장 대상 회원 ID
+     */
+    void leaveQueue(long memberId);
 }

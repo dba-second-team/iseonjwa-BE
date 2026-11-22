@@ -236,6 +236,30 @@ public class RedisQueueRepository implements QueueRepository {
     @SuppressWarnings("rawtypes")
     private static final DefaultRedisScript<List> ENTER_ACTIVE_SCRIPT = createScript(ENTER_ACTIVE_LUA);
 
+    /**
+     * 원자적 큐 퇴장 스크립트.
+     * <p>
+     * 회원 상태 해시(queue:member:{memberId})에서 performanceId를 역조회하여
+     * 해당 공연의 waiting_queue와 active_queue 양쪽에서 회원을 제거하고 회원 상태 해시를 삭제한다.
+     */
+    private static final String LEAVE_QUEUE_LUA = """
+            local memberKey = KEYS[1]
+
+            local memberId = ARGV[1]
+            local waitingPrefix = ARGV[2]
+            local activePrefix = ARGV[3]
+
+            local performanceId = redis.call('HGET', memberKey, 'performanceId')
+            if performanceId then
+                redis.call('ZREM', waitingPrefix .. performanceId, memberId)
+                redis.call('ZREM', activePrefix .. performanceId, memberId)
+            end
+            redis.call('DEL', memberKey)
+            return 1
+            """;
+
+    private static final DefaultRedisScript<Long> LEAVE_QUEUE_SCRIPT = createLongScript(LEAVE_QUEUE_LUA);
+
     private final StringRedisTemplate stringRedisTemplate;
 
     @Override
@@ -356,11 +380,30 @@ public class RedisQueueRepository implements QueueRepository {
         throw new IllegalStateException("알 수 없는 작업열 진입 결과 코드입니다: " + stateCode);
     }
 
+    @Override
+    public void leaveQueue(long memberId) {
+        List<String> keys = List.of(RedisQueueKeys.memberStateKey(memberId));
+        stringRedisTemplate.execute(
+                LEAVE_QUEUE_SCRIPT,
+                keys,
+                String.valueOf(memberId),
+                RedisQueueKeys.WAITING_QUEUE_PREFIX,
+                RedisQueueKeys.ACTIVE_QUEUE_PREFIX
+        );
+    }
+
     @SuppressWarnings("rawtypes")
     private static DefaultRedisScript<List> createScript(String lua) {
         DefaultRedisScript<List> script = new DefaultRedisScript<>();
         script.setScriptText(lua);
         script.setResultType(List.class);
+        return script;
+    }
+
+    private static DefaultRedisScript<Long> createLongScript(String lua) {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setScriptText(lua);
+        script.setResultType(Long.class);
         return script;
     }
 }
