@@ -43,6 +43,12 @@ public class Payment {
             foreignKey = @ForeignKey(name = "R_16"))
     private Reservation reservation;
 
+    public void completeRefund(LocalDateTime refundedAt) {
+        this.refundAmount = paidAmount - cancelFee;
+        this.refundedAt = refundedAt;
+        this.status = PaymentStatus.REFUNDED;
+    }
+
     @Builder
     private Payment(Integer paidAmount, Reservation reservation) {
         this.paidAmount = paidAmount;
