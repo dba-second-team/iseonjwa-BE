@@ -1,6 +1,7 @@
 package secondteam.iseonjwa.performance.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -71,7 +73,7 @@ public class PerformanceQueryService {
                 performance.getPerformanceId(),
                 performance.getTitle(),
                 performance.getGenre(),
-                posterStorage.readUrl(performance.getPosterKey()),
+                posterUrl(performance.getPosterKey()),
                 performance.getStatus(),
                 performance.getVenueName(),
                 performance.getRunningTime(),
@@ -102,12 +104,21 @@ public class PerformanceQueryService {
                 performance.getPerformanceId(),
                 performance.getTitle(),
                 performance.getGenre(),
-                posterStorage.readUrl(performance.getPosterKey()),
+                posterUrl(performance.getPosterKey()),
                 performance.getStatus(),
                 period == null ? null : period.getFirstStartAt().toLocalDate(),
                 period == null ? null : period.getLastStartAt().toLocalDate(),
                 priceRange == null ? null : priceRange.getMinPrice(),
                 priceRange == null ? null : priceRange.getMaxPrice()
         );
+    }
+
+    private String posterUrl(String posterKey) {
+        try {
+            return posterStorage.readUrl(posterKey);
+        } catch (BusinessException e) {
+            log.warn("포스터 URL을 만들지 못했습니다. posterKey={}", posterKey, e);
+            return null;
+        }
     }
 }
