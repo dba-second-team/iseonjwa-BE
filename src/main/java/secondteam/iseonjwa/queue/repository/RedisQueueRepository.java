@@ -145,10 +145,11 @@ public class RedisQueueRepository implements QueueRepository {
     /**
      * 원자적 예매 작업열 진입 스크립트.
      * <p>
-     * 1) 대상 공연 active_queue의 만료 엔트리(score <= nowMillis)를 먼저 제거.<br>
+     * 1) Redis 실행 시점 시각(TIME)과 요청 시각 중 최신값을 기준으로 active_queue 만료 엔트리를 먼저 제거.<br>
      * 2) 이미 같은 공연의 유효한 ACTIVE 상태라면 타이머 연장 없이 기존 {1, admittedAt, expiresAt} 반환(멱등 처리).<br>
      * 3) 대상 공연의 WAITING 상태가 아니거나 만료·유실된 상태라면 잔여 데이터를 정리하고 {0, 0, 0} 반환(QUEUE_ENTRY_NOT_FOUND).<br>
-     * 4) 대기 순번(ZRANK + 1)이 남은 작업열 자리 수(maxActiveSize - validActiveCount) 이내일 때만
+     * 4) 스크립트 실행 시점에 이미 expiresAtMillis가 지났다면 대기열 순번을 유지한 채 {-2, 0, 0} 반환.<br>
+     * 5) 대기 순번(ZRANK + 1)이 남은 작업열 자리 수(maxActiveSize - validActiveCount) 이내일 때만
      *    waiting_queue에서 제거하고 active_queue 및 회원 해시를 ACTIVE로 갱신하여 {1, nowMillis, expiresAtMillis} 반환.
      *    순번이 아직 안 되었거나 정원 초과면 {-1, 0, 0} 반환(CANNOT_ENTER_ACTIVE_QUEUE).
      */
@@ -165,7 +166,11 @@ public class RedisQueueRepository implements QueueRepository {
             local waitingPrefix = ARGV[6]
             local activePrefix = ARGV[7]
 
-            redis.call('ZREMRANGEBYSCORE', activeKey, '-inf', nowMillis)
+            local redisTime = redis.call('TIME')
+            local execNowMillis = tonumber(redisTime[1]) * 1000 + math.floor(tonumber(redisTime[2]) / 1000)
+            local effectiveNowMillis = math.max(nowMillis, execNowMillis)
+
+            redis.call('ZREMRANGEBYSCORE', activeKey, '-inf', effectiveNowMillis)
 
             local currentStatus = redis.call('HGET', memberKey, 'status')
             local prevPerfId = redis.call('HGET', memberKey, 'performanceId')
@@ -173,7 +178,7 @@ public class RedisQueueRepository implements QueueRepository {
             if currentStatus == 'ACTIVE' and prevPerfId then
                 local prevActiveKey = activePrefix .. prevPerfId
                 local existingExpiresAt = redis.call('ZSCORE', prevActiveKey, memberId)
-                if existingExpiresAt == false or tonumber(existingExpiresAt) <= nowMillis then
+                if existingExpiresAt == false or tonumber(existingExpiresAt) <= effectiveNowMillis then
                     redis.call('ZREM', prevActiveKey, memberId)
                     redis.call('DEL', memberKey)
                     return {0, 0, 0}
@@ -203,6 +208,10 @@ public class RedisQueueRepository implements QueueRepository {
                 return {0, 0, 0}
             end
 
+            if expiresAtMillis <= effectiveNowMillis then
+                return {-2, 0, 0}
+            end
+
             local validActiveCount = redis.call('ZCARD', activeKey)
             local availableSlots = maxActiveSize - validActiveCount
             local position = rank + 1
@@ -226,6 +235,30 @@ public class RedisQueueRepository implements QueueRepository {
 
     @SuppressWarnings("rawtypes")
     private static final DefaultRedisScript<List> ENTER_ACTIVE_SCRIPT = createScript(ENTER_ACTIVE_LUA);
+
+    /**
+     * 원자적 큐 퇴장 스크립트.
+     * <p>
+     * 회원 상태 해시(queue:member:{memberId})에서 performanceId를 역조회하여
+     * 해당 공연의 waiting_queue와 active_queue 양쪽에서 회원을 제거하고 회원 상태 해시를 삭제한다.
+     */
+    private static final String LEAVE_QUEUE_LUA = """
+            local memberKey = KEYS[1]
+
+            local memberId = ARGV[1]
+            local waitingPrefix = ARGV[2]
+            local activePrefix = ARGV[3]
+
+            local performanceId = redis.call('HGET', memberKey, 'performanceId')
+            if performanceId then
+                redis.call('ZREM', waitingPrefix .. performanceId, memberId)
+                redis.call('ZREM', activePrefix .. performanceId, memberId)
+            end
+            redis.call('DEL', memberKey)
+            return 1
+            """;
+
+    private static final DefaultRedisScript<Long> LEAVE_QUEUE_SCRIPT = createLongScript(LEAVE_QUEUE_LUA);
 
     private final StringRedisTemplate stringRedisTemplate;
 
@@ -302,6 +335,10 @@ public class RedisQueueRepository implements QueueRepository {
             Instant now,
             Instant expiresAt,
             long maxActiveSize) {
+        if (!expiresAt.isAfter(now)) {
+            throw new BusinessException(ErrorCode.CANNOT_ENTER_ACTIVE_QUEUE);
+        }
+
         List<String> keys = List.of(
                 RedisQueueKeys.memberStateKey(memberId),
                 RedisQueueKeys.waitingQueueKey(performanceId),
@@ -328,7 +365,7 @@ public class RedisQueueRepository implements QueueRepository {
         if (stateCode == 0L) {
             throw new BusinessException(ErrorCode.QUEUE_ENTRY_NOT_FOUND);
         }
-        if (stateCode == -1L) {
+        if (stateCode == -1L || stateCode == -2L) {
             throw new BusinessException(ErrorCode.CANNOT_ENTER_ACTIVE_QUEUE);
         }
         if (stateCode == 1L) {
@@ -343,11 +380,30 @@ public class RedisQueueRepository implements QueueRepository {
         throw new IllegalStateException("알 수 없는 작업열 진입 결과 코드입니다: " + stateCode);
     }
 
+    @Override
+    public void leaveQueue(long memberId) {
+        List<String> keys = List.of(RedisQueueKeys.memberStateKey(memberId));
+        stringRedisTemplate.execute(
+                LEAVE_QUEUE_SCRIPT,
+                keys,
+                String.valueOf(memberId),
+                RedisQueueKeys.WAITING_QUEUE_PREFIX,
+                RedisQueueKeys.ACTIVE_QUEUE_PREFIX
+        );
+    }
+
     @SuppressWarnings("rawtypes")
     private static DefaultRedisScript<List> createScript(String lua) {
         DefaultRedisScript<List> script = new DefaultRedisScript<>();
         script.setScriptText(lua);
         script.setResultType(List.class);
+        return script;
+    }
+
+    private static DefaultRedisScript<Long> createLongScript(String lua) {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setScriptText(lua);
+        script.setResultType(Long.class);
         return script;
     }
 }

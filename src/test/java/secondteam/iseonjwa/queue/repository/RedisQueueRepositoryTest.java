@@ -185,11 +185,25 @@ class RedisQueueRepositoryTest {
                 "queue:active:"
         );
         assertThat(scriptCaptor.getValue().getScriptAsString())
+                .contains("TIME")
                 .contains("ZREMRANGEBYSCORE")
                 .contains("ZRANK")
                 .contains("ZREM")
                 .contains("ZADD")
                 .contains("admittedAt");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void throwsCannotEnterActiveQueueWhenTargetExpiryAlreadyPassedAtRedisExecutionTime() {
+        Instant now = Instant.parse("2026-11-22T09:31:00Z");
+        when(stringRedisTemplate.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(List.of(-2L, 0L, 0L));
+
+        assertThatThrownBy(() -> redisQueueRepository.enterActiveQueue(9L, 2L, now, now.plusSeconds(1), 4L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CANNOT_ENTER_ACTIVE_QUEUE);
     }
 
     @Test
@@ -216,5 +230,31 @@ class RedisQueueRepositoryTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CANNOT_ENTER_ACTIVE_QUEUE);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void leavesQueuePassingExpectedKeysAndPrefixes() {
+        when(stringRedisTemplate.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(1L);
+
+        redisQueueRepository.leaveQueue(13L);
+
+        ArgumentCaptor<RedisScript<Long>> scriptCaptor = ArgumentCaptor.forClass(RedisScript.class);
+        ArgumentCaptor<List<String>> keysCaptor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
+
+        verify(stringRedisTemplate).execute(scriptCaptor.capture(), keysCaptor.capture(), argsCaptor.capture());
+
+        assertThat(keysCaptor.getValue()).containsExactly("queue:member:13");
+        assertThat(argsCaptor.getValue()).containsExactly(
+                "13",
+                "queue:waiting:",
+                "queue:active:"
+        );
+        assertThat(scriptCaptor.getValue().getScriptAsString())
+                .contains("HGET")
+                .contains("ZREM")
+                .contains("DEL");
     }
 }

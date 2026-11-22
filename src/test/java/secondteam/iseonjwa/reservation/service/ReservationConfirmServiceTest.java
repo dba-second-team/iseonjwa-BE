@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.support.TransactionTemplate;
 import secondteam.iseonjwa.member.entity.Member;
@@ -18,6 +19,7 @@ import secondteam.iseonjwa.performance.entity.Price;
 import secondteam.iseonjwa.performance.entity.Schedule;
 import secondteam.iseonjwa.performance.repository.PriceRepository;
 import secondteam.iseonjwa.performance.repository.ScheduleRepository;
+import secondteam.iseonjwa.queue.repository.QueueRepository;
 import secondteam.iseonjwa.reservation.entity.Payment;
 import secondteam.iseonjwa.reservation.entity.PaymentStatus;
 import secondteam.iseonjwa.reservation.repository.PaymentRepository;
@@ -32,6 +34,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -71,6 +75,9 @@ class ReservationConfirmServiceTest {
 
     @Autowired
     private PaymentRepository paymentRepository;
+
+    @MockitoBean
+    private QueueRepository queueRepository;
 
     private Member member;
     private Member otherMember;
@@ -187,6 +194,7 @@ class ReservationConfirmServiceTest {
         Payment savedPayment = paymentRepository.findAll().getFirst();
         assertThat(savedPayment.getPaidAmount()).isEqualTo(250_000);
         assertThat(savedPayment.getStatus()).isEqualTo(PaymentStatus.PAID);
+        verify(queueRepository).leaveQueue(member.getMemberId());
     }
 
     @Test
@@ -210,6 +218,7 @@ class ReservationConfirmServiceTest {
         assertThat(paymentRepository.count()).isZero();
         assertThat(seatRepository.findById(heldSeat1.getSeatId()).orElseThrow().getStatus())
                 .isEqualTo(SeatStatus.HELD);
+        verifyNoInteractions(queueRepository);
     }
 
     @Test
@@ -239,6 +248,7 @@ class ReservationConfirmServiceTest {
         assertThat(reservationRepository.count()).isZero();
         assertThat(seatRepository.findById(heldSeat1.getSeatId()).orElseThrow().getStatus())
                 .isEqualTo(SeatStatus.HELD);
+        verifyNoInteractions(queueRepository);
     }
 
     @Test

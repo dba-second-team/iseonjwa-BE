@@ -1,5 +1,5 @@
-package secondteam.iseonjwa.queue.service;
 
+    package secondteam.iseonjwa.queue.service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import secondteam.iseonjwa.global.error.BusinessException;

@@ -1,8 +1,11 @@
 package secondteam.iseonjwa.reservation.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import secondteam.iseonjwa.global.error.BusinessException;
 import secondteam.iseonjwa.global.error.ErrorCode;
 import secondteam.iseonjwa.member.entity.Member;
@@ -11,6 +14,7 @@ import secondteam.iseonjwa.performance.entity.Price;
 import secondteam.iseonjwa.performance.entity.Schedule;
 import secondteam.iseonjwa.performance.repository.PriceRepository;
 import secondteam.iseonjwa.performance.repository.ScheduleRepository;
+import secondteam.iseonjwa.queue.repository.QueueRepository;
 import secondteam.iseonjwa.reservation.dto.CreateReservationRequest;
 import secondteam.iseonjwa.reservation.dto.CreateReservationResponse;
 import secondteam.iseonjwa.reservation.entity.Payment;
@@ -40,6 +44,7 @@ import java.util.stream.Collectors;
  * -> 8.4 결제 저장·좌석 확정·작업열 삭제 전 과정을 단일 트랜잭션으로 처리한다.
  * 중간에 하나라도 실패하면 전체 롤백된다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReservationConfirmService {
@@ -53,6 +58,7 @@ public class ReservationConfirmService {
     private final ReservationRepository reservationRepository;
     private final ReservationSeatRepository reservationSeatRepository;
     private final PaymentRepository paymentRepository;
+    private final QueueRepository queueRepository;
 
     /**
      * 선점한 좌석들에 대해 가상 결제를 수행하고 예매를 확정한다. (단일 트랜잭션)
@@ -163,11 +169,28 @@ public class ReservationConfirmService {
     }
 
     /**
-     * 예매 작업열(Active_queue)에서 완료된 회원 정보를 제거한다.
-     * 작업열(대기열) 기능 구현 시 해당 저장소 삭제 호출을 이 위치에 연결한다.
+     * DB 예매·결제 트랜잭션이 최종 커밋된 직후 예매 작업열(active_queue)에서 회원을 즉시 제거한다.
+     * 롤백 시에는 작업열 자리가 유지되며, 커밋 이후 Redis 일시 장애가 발생해도 확정된 예매 응답은 실패시키지 않는다.
      */
     private void removeFromActiveQueue(Long memberId) {
-        // Active_queue 구현체 연동 지점 (현재 스키마/인프라 미구현 상태로 no-op 유지)
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    safelyLeaveQueue(memberId);
+                }
+            });
+            return;
+        }
+        safelyLeaveQueue(memberId);
+    }
+
+    private void safelyLeaveQueue(Long memberId) {
+        try {
+            queueRepository.leaveQueue(memberId);
+        } catch (RuntimeException e) {
+            log.warn("예매 확정 후 큐 정리 실패 (memberId={})", memberId, e);
+        }
     }
 
     private OffsetDateTime toOffset(LocalDateTime dateTime) {
