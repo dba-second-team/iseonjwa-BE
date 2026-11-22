@@ -256,8 +256,11 @@ class WaitingQueueControllerTest {
                 futures.add(executor.submit(task));
             }
 
-            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
-            start.countDown();
+            try {
+                assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            } finally {
+                start.countDown();
+            }
 
             List<Integer> statuses = new ArrayList<>();
             for (Future<Integer> future : futures) {
