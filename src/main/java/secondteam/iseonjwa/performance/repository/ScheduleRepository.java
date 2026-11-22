@@ -7,6 +7,7 @@ import secondteam.iseonjwa.performance.entity.Schedule;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     @Query("""
@@ -20,4 +21,8 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             @Param("venueName") String venueName,
             @Param("latestEndAt") LocalDateTime latestEndAt
     );
+
+    /** 회차와 소속 공연 정보를 한 번에 조회한다. */
+    @Query("select s from Schedule s join fetch s.performance where s.scheduleId = :scheduleId")
+    Optional<Schedule> findByIdWithPerformance(@Param("scheduleId") Long scheduleId);
 }

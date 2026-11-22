@@ -10,7 +10,7 @@ public enum ErrorCode {
 
     // 400 Bad Request
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
-    PRICE_NOT_SET(HttpStatus.BAD_REQUEST, "등급별 가격이 설정되지 않았습니다."),
+    PRICE_NOT_SET(HttpStatus.BAD_REQUEST, "구역별 가격이 설정되지 않았습니다."),
 
     // 401 Unauthorized
     LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "로그인에 실패했습니다."),
