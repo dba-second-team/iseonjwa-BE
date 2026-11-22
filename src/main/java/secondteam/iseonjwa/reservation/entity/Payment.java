@@ -53,6 +53,12 @@ public class Payment {
         this.status = PaymentStatus.CANCELED;
     }
 
+    public void completeRefund(LocalDateTime refundedAt) {
+        this.refundAmount = paidAmount - cancelFee;
+        this.refundedAt = refundedAt;
+        this.status = PaymentStatus.REFUNDED;
+    }
+
     @Builder
     private Payment(Integer paidAmount, Reservation reservation) {
         this.paidAmount = paidAmount;
