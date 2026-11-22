@@ -150,4 +150,71 @@ class RedisQueueRepositoryTest {
 
         assertThat(result).isEmpty();
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void entersActiveQueueAndPassesExpectedKeysAndArgs() {
+        Instant now = Instant.parse("2026-11-22T09:31:00Z");
+        Instant expiresAt = Instant.parse("2026-11-22T09:41:00Z");
+        when(stringRedisTemplate.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(List.of(1L, now.toEpochMilli(), expiresAt.toEpochMilli()));
+
+        ActiveQueueAdmission admission = redisQueueRepository.enterActiveQueue(9L, 2L, now, expiresAt, 4L);
+
+        assertThat(admission.admittedAt()).isEqualTo(now);
+        assertThat(admission.expiresAt()).isEqualTo(expiresAt);
+
+        ArgumentCaptor<RedisScript<List>> scriptCaptor = ArgumentCaptor.forClass(RedisScript.class);
+        ArgumentCaptor<List<String>> keysCaptor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
+
+        verify(stringRedisTemplate).execute(scriptCaptor.capture(), keysCaptor.capture(), argsCaptor.capture());
+
+        assertThat(keysCaptor.getValue()).containsExactly(
+                "queue:member:9",
+                "queue:waiting:2",
+                "queue:active:2"
+        );
+        assertThat(argsCaptor.getValue()).containsExactly(
+                "9",
+                "2",
+                String.valueOf(now.toEpochMilli()),
+                String.valueOf(expiresAt.toEpochMilli()),
+                "4",
+                "queue:waiting:",
+                "queue:active:"
+        );
+        assertThat(scriptCaptor.getValue().getScriptAsString())
+                .contains("ZREMRANGEBYSCORE")
+                .contains("ZRANK")
+                .contains("ZREM")
+                .contains("ZADD")
+                .contains("admittedAt");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void throwsQueueEntryNotFoundWhenEnterActiveLuaReturnsZero() {
+        Instant now = Instant.parse("2026-11-22T09:31:00Z");
+        when(stringRedisTemplate.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(List.of(0L, 0L, 0L));
+
+        assertThatThrownBy(() -> redisQueueRepository.enterActiveQueue(9L, 2L, now, now.plusSeconds(600), 4L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.QUEUE_ENTRY_NOT_FOUND);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void throwsCannotEnterActiveQueueWhenEnterActiveLuaReturnsMinusOne() {
+        Instant now = Instant.parse("2026-11-22T09:31:00Z");
+        when(stringRedisTemplate.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(List.of(-1L, 0L, 0L));
+
+        assertThatThrownBy(() -> redisQueueRepository.enterActiveQueue(9L, 2L, now, now.plusSeconds(600), 4L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CANNOT_ENTER_ACTIVE_QUEUE);
+    }
 }
