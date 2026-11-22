@@ -23,6 +23,7 @@ public enum ErrorCode {
     PERFORMANCE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 공연입니다."),
     SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 회차입니다."),
     RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 예매입니다."),
+    QUEUE_ENTRY_NOT_FOUND(HttpStatus.NOT_FOUND, "대기열 또는 예매 작업열에 진입한 상태가 아닙니다."),
 
     // 409 Conflict
     EMAIL_DUPLICATED(HttpStatus.CONFLICT, "이미 가입된 이메일입니다."),

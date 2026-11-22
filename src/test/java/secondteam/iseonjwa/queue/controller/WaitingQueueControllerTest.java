@@ -20,6 +20,7 @@ import secondteam.iseonjwa.performance.entity.Performance;
 import secondteam.iseonjwa.performance.entity.PerformanceStatus;
 import secondteam.iseonjwa.performance.repository.PerformanceRepository;
 import secondteam.iseonjwa.queue.dto.QueueStatus;
+import secondteam.iseonjwa.queue.repository.QueueEntrySnapshot;
 import secondteam.iseonjwa.queue.repository.QueueRepository;
 
 import java.time.Instant;
@@ -30,6 +31,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -389,6 +391,52 @@ class WaitingQueueControllerTest {
                 position++;
             }
             throw new IllegalStateException("대기열 순번 계산 실패");
+        }
+
+        @Override
+        public synchronized Optional<QueueEntrySnapshot> findMemberQueueState(long memberId, Instant now) {
+            long nowMillis = now.toEpochMilli();
+            MemberState existing = memberStates.get(memberId);
+            if (existing == null) {
+                return Optional.empty();
+            }
+
+            long performanceId = existing.performanceId();
+            if (existing.status() == QueueStatus.WAITING) {
+                LinkedHashSet<Long> waiting = waitingQueues.get(performanceId);
+                if (waiting == null || !waiting.contains(memberId)) {
+                    memberStates.remove(memberId);
+                    return Optional.empty();
+                }
+
+                long position = 1L;
+                for (Long id : waiting) {
+                    if (id.equals(memberId)) {
+                        break;
+                    }
+                    position++;
+                }
+
+                Map<Long, Long> active = activeQueues.get(performanceId);
+                long validActiveCount = 0L;
+                if (active != null) {
+                    active.entrySet().removeIf(entry -> entry.getValue() <= nowMillis);
+                    validActiveCount = active.size();
+                }
+                return Optional.of(QueueEntrySnapshot.waiting(performanceId, position, validActiveCount));
+            }
+
+            Map<Long, Long> active = activeQueues.get(performanceId);
+            Long exp = active != null ? active.get(memberId) : null;
+            if (exp == null || exp <= nowMillis) {
+                if (active != null) {
+                    active.remove(memberId);
+                }
+                memberStates.remove(memberId);
+                return Optional.empty();
+            }
+
+            return Optional.of(QueueEntrySnapshot.active(performanceId, Instant.ofEpochMilli(exp)));
         }
 
         synchronized void putActiveForTest(long memberId, long performanceId, Instant expiresAt) {
