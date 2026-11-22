@@ -45,6 +45,32 @@ public class Seat {
     @JoinColumn(name = "schedule_id", nullable = false, foreignKey = @ForeignKey(name = "R_18"))
     private Schedule schedule;
 
+    /** 좌석을 선점(HELD) 상태로 바꾸고 선점한 회원과 만료 시각을 기록한다. */
+    public void hold(Member member, LocalDateTime until) {
+        this.status = SeatStatus.HELD;
+        this.heldBy = member;
+        this.heldUntil = until;
+    }
+
+    /** 해당 회원이 현재 선점(HELD) 중인 좌석인지 확인한다. */
+    public boolean isHeldBy(Long memberId) {
+        return this.status == SeatStatus.HELD
+                && this.heldBy != null
+                && this.heldBy.getMemberId().equals(memberId);
+    }
+
+    /** 선점 유효 시각이 기준 시각 이후인지(held_until > now) 확인한다. */
+    public boolean isHoldValidAt(LocalDateTime now) {
+        return this.heldUntil != null && this.heldUntil.isAfter(now);
+    }
+
+    /** 좌석을 예매 확정(RESERVED) 상태로 바꾸고 선점 정보를 비운다. */
+    public void reserve() {
+        this.status = SeatStatus.RESERVED;
+        this.heldBy = null;
+        this.heldUntil = null;
+    }
+
     @Builder
     private Seat(SeatSection section, String rowNum, Integer seatNum, Schedule schedule) {
         this.section = section;
