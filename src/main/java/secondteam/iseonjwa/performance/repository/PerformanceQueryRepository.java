@@ -7,13 +7,27 @@ import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 import secondteam.iseonjwa.performance.entity.Performance;
 import secondteam.iseonjwa.performance.entity.PerformanceStatus;
+import secondteam.iseonjwa.performance.entity.Schedule;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface PerformanceQueryRepository extends Repository<Performance, Long> {
 
     Page<Performance> findAllByStatusNot(PerformanceStatus status, Pageable pageable);
+
+    Optional<Performance> findByPerformanceId(Long performanceId);
+
+    boolean existsByPerformanceId(Long performanceId);
+
+    @Query("""
+            select schedule
+            from Schedule schedule
+            where schedule.performance.performanceId = :performanceId
+            order by schedule.startAt asc
+            """)
+    List<Schedule> findSchedules(@Param("performanceId") Long performanceId);
 
     @Query("""
             select schedule.performance.performanceId as performanceId,
