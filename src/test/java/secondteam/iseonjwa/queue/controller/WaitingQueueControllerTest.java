@@ -20,6 +20,7 @@ import secondteam.iseonjwa.performance.entity.Performance;
 import secondteam.iseonjwa.performance.entity.PerformanceStatus;
 import secondteam.iseonjwa.performance.repository.PerformanceRepository;
 import secondteam.iseonjwa.queue.dto.QueueStatus;
+import secondteam.iseonjwa.queue.repository.ActiveQueueAdmission;
 import secondteam.iseonjwa.queue.repository.QueueEntrySnapshot;
 import secondteam.iseonjwa.queue.repository.QueueRepository;
 
@@ -347,7 +348,7 @@ class WaitingQueueControllerTest {
      */
     static class InMemoryQueueRepository implements QueueRepository {
 
-        private record MemberState(long performanceId, QueueStatus status, long expiresAtMillis) {
+        private record MemberState(long performanceId, QueueStatus status, long admittedAtMillis, long expiresAtMillis) {
         }
 
         private final Map<Long, MemberState> memberStates = new HashMap<>();
@@ -381,7 +382,7 @@ class WaitingQueueControllerTest {
 
             LinkedHashSet<Long> waiting = waitingQueues.computeIfAbsent(performanceId, id -> new LinkedHashSet<>());
             waiting.add(memberId);
-            memberStates.put(memberId, new MemberState(performanceId, QueueStatus.WAITING, 0L));
+            memberStates.put(memberId, new MemberState(performanceId, QueueStatus.WAITING, 0L, 0L));
 
             long position = 1L;
             for (Long id : waiting) {
@@ -439,10 +440,74 @@ class WaitingQueueControllerTest {
             return Optional.of(QueueEntrySnapshot.active(performanceId, Instant.ofEpochMilli(exp)));
         }
 
+        @Override
+        public synchronized ActiveQueueAdmission enterActiveQueue(
+                long memberId,
+                long performanceId,
+                Instant now,
+                Instant expiresAt,
+                long maxActiveSize) {
+            long nowMillis = now.toEpochMilli();
+            long expiresAtMillis = expiresAt.toEpochMilli();
+
+            Map<Long, Long> active = activeQueues.computeIfAbsent(performanceId, id -> new HashMap<>());
+            active.entrySet().removeIf(entry -> entry.getValue() <= nowMillis);
+
+            MemberState existing = memberStates.get(memberId);
+            if (existing != null && existing.status() == QueueStatus.ACTIVE) {
+                Map<Long, Long> prevActive = activeQueues.get(existing.performanceId());
+                Long existingExp = prevActive != null ? prevActive.get(memberId) : null;
+                if (existingExp == null || existingExp <= nowMillis) {
+                    if (prevActive != null) {
+                        prevActive.remove(memberId);
+                    }
+                    memberStates.remove(memberId);
+                    throw new BusinessException(ErrorCode.QUEUE_ENTRY_NOT_FOUND);
+                }
+                if (existing.performanceId() == performanceId) {
+                    long admittedMillis = existing.admittedAtMillis() > 0L ? existing.admittedAtMillis() : nowMillis;
+                    return new ActiveQueueAdmission(
+                            Instant.ofEpochMilli(admittedMillis),
+                            Instant.ofEpochMilli(existingExp)
+                    );
+                }
+                throw new BusinessException(ErrorCode.QUEUE_ENTRY_NOT_FOUND);
+            }
+
+            if (existing == null || existing.status() != QueueStatus.WAITING || existing.performanceId() != performanceId) {
+                throw new BusinessException(ErrorCode.QUEUE_ENTRY_NOT_FOUND);
+            }
+
+            LinkedHashSet<Long> waiting = waitingQueues.get(performanceId);
+            if (waiting == null || !waiting.contains(memberId)) {
+                memberStates.remove(memberId);
+                throw new BusinessException(ErrorCode.QUEUE_ENTRY_NOT_FOUND);
+            }
+
+            long position = 1L;
+            for (Long id : waiting) {
+                if (id.equals(memberId)) {
+                    break;
+                }
+                position++;
+            }
+
+            long availableSlots = maxActiveSize - active.size();
+            if (availableSlots <= 0L || position > availableSlots) {
+                throw new BusinessException(ErrorCode.CANNOT_ENTER_ACTIVE_QUEUE);
+            }
+
+            waiting.remove(memberId);
+            active.put(memberId, expiresAtMillis);
+            memberStates.put(memberId, new MemberState(performanceId, QueueStatus.ACTIVE, nowMillis, expiresAtMillis));
+            return new ActiveQueueAdmission(now, expiresAt);
+        }
+
         synchronized void putActiveForTest(long memberId, long performanceId, Instant expiresAt) {
             long expMillis = expiresAt.toEpochMilli();
+            long admMillis = expMillis - 600_000L;
             activeQueues.computeIfAbsent(performanceId, id -> new HashMap<>()).put(memberId, expMillis);
-            memberStates.put(memberId, new MemberState(performanceId, QueueStatus.ACTIVE, expMillis));
+            memberStates.put(memberId, new MemberState(performanceId, QueueStatus.ACTIVE, admMillis, expMillis));
         }
 
         synchronized int totalWaitingCount() {

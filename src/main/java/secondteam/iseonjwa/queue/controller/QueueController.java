@@ -17,9 +17,12 @@ import org.springframework.web.bind.annotation.RestController;
 import secondteam.iseonjwa.global.common.ApiResponse;
 import secondteam.iseonjwa.global.error.ErrorCode;
 import secondteam.iseonjwa.global.error.ErrorResponse;
+import secondteam.iseonjwa.queue.dto.ActiveQueueEnterRequest;
+import secondteam.iseonjwa.queue.dto.ActiveQueueEnterResponse;
 import secondteam.iseonjwa.queue.dto.QueueStatusResponse;
 import secondteam.iseonjwa.queue.dto.WaitingQueueRegisterRequest;
 import secondteam.iseonjwa.queue.dto.WaitingQueueRegisterResponse;
+import secondteam.iseonjwa.queue.service.ActiveQueueService;
 import secondteam.iseonjwa.queue.service.QueueStatusService;
 import secondteam.iseonjwa.queue.service.WaitingQueueService;
 
@@ -31,6 +34,7 @@ public class QueueController {
 
     private final WaitingQueueService waitingQueueService;
     private final QueueStatusService queueStatusService;
+    private final ActiveQueueService activeQueueService;
 
     @PostMapping("/waiting")
     @ResponseStatus(HttpStatus.CREATED)
@@ -44,6 +48,13 @@ public class QueueController {
     public ApiResponse<QueueStatusResponse> getQueueStatus(
             @RequestHeader("X-Member-Id") Long memberId) {
         return ApiResponse.ok(queueStatusService.getStatus(memberId));
+    }
+
+    @PostMapping("/active")
+    public ApiResponse<ActiveQueueEnterResponse> enterActive(
+            @RequestHeader("X-Member-Id") Long memberId,
+            @RequestBody @Valid ActiveQueueEnterRequest request) {
+        return ApiResponse.ok(activeQueueService.enter(memberId, request));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

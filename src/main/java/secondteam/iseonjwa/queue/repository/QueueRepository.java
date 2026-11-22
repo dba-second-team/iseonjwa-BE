@@ -25,4 +25,23 @@ public interface QueueRepository {
      * @return 현재 큐 상태 스냅샷
      */
     Optional<QueueEntrySnapshot> findMemberQueueState(long memberId, Instant now);
+
+    /**
+     * 입장 순서가 된 대기열 회원을 {@code waiting_queue}에서 제거하고 {@code active_queue}로 원자적으로 이동시킨다.
+     * 이미 해당 공연의 유효한 {@code active_queue}에 있는 경우 타이머 연장 없이 기존 시각을 그대로 반환한다.
+     *
+     * @param memberId      진입 요청 회원 ID
+     * @param performanceId 진입 대상 공연 ID
+     * @param now           진입 기준 시각
+     * @param expiresAt     신규 진입 시 부여할 만료 시각
+     * @param maxActiveSize 공연별 작업열 최대 정원
+     * @return 작업열 진입 시각 및 만료 시각 스냅샷
+     */
+    ActiveQueueAdmission enterActiveQueue(
+            long memberId,
+            long performanceId,
+            Instant now,
+            Instant expiresAt,
+            long maxActiveSize
+    );
 }

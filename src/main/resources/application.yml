@@ -27,3 +27,4 @@ spring:
 queue:
   active:
     max-size: ${QUEUE_ACTIVE_MAX_SIZE:4}
+    ttl-seconds: ${QUEUE_ACTIVE_TTL_SECONDS:600}
