@@ -16,6 +16,7 @@ import secondteam.iseonjwa.performance.repository.PerformanceRepository;
 import secondteam.iseonjwa.performance.repository.PriceRepository;
 import secondteam.iseonjwa.performance.repository.ScheduleRepository;
 import secondteam.iseonjwa.seat.entity.SeatSection;
+import secondteam.iseonjwa.seat.repository.ScheduleSeatRepository;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -32,6 +33,7 @@ public class PerformanceRegistrationService {
     private final PerformanceRepository performanceRepository;
     private final ScheduleRepository scheduleRepository;
     private final PriceRepository priceRepository;
+    private final ScheduleSeatRepository scheduleSeatRepository;
 
     @Transactional
     public PerformanceCreateResponse register(long adminId, PerformanceCreateRequest request) {
@@ -70,6 +72,8 @@ public class PerformanceRegistrationService {
                         .performance(performance)
                         .build())
                 .toList());
+
+        schedules.forEach(schedule -> scheduleSeatRepository.createForSchedule(schedule.getScheduleId()));
 
         return new PerformanceCreateResponse(
                 performance.getPerformanceId(),

@@ -6,11 +6,14 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import secondteam.iseonjwa.seat.repository.ScheduleSeatRepository;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
@@ -19,8 +22,13 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -36,6 +44,9 @@ class PerformanceRegistrationTests {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @MockitoSpyBean
+    private ScheduleSeatRepository scheduleSeatRepository;
 
     private long adminId;
     private long userId;
@@ -77,6 +88,91 @@ class PerformanceRegistrationTests {
         assertThat(jdbc.queryForObject("""
                 SELECT price FROM price WHERE performance_id = ? AND section = 'G'
                 """, Integer.class, performanceId)).isZero();
+    }
+
+    @Test
+    void createsEverySeatForFourSchedulesWithTheNumberResetForEachRow() throws Exception {
+        String venue = "회차별 자동 좌석 공연장";
+        register(adminId, request(venue, """
+                {"startAt":"2027-01-01T19:30:00+09:00"},
+                {"startAt":"2027-01-02T19:30:00+09:00"},
+                {"startAt":"2027-01-03T19:30:00+09:00"},
+                {"startAt":"2027-01-04T19:30:00+09:00"}
+                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.schedules.length()").value(4));
+
+        record SectionCount(long scheduleId, String section, int seats, int rows, int available) {}
+        var sectionCounts = jdbc.query("""
+                SELECT s.schedule_id, st.section, COUNT(*) AS seat_count,
+                       COUNT(DISTINCT st.row_num) AS row_count,
+                       SUM(CASE WHEN st.status = 'AVAILABLE' THEN 1 ELSE 0 END) AS available_count
+                FROM performance p
+                JOIN schedule s ON s.performance_id = p.performance_id
+                JOIN seat st ON st.schedule_id = s.schedule_id
+                WHERE p.venue_name = ?
+                GROUP BY s.schedule_id, st.section
+                """, (row, index) -> new SectionCount(row.getLong("schedule_id"), row.getString("section"),
+                row.getInt("seat_count"), row.getInt("row_count"), row.getInt("available_count")), venue);
+        var countsBySchedule = sectionCounts.stream().collect(Collectors.groupingBy(SectionCount::scheduleId));
+
+        assertThat(countsBySchedule).hasSize(4);
+        assertThat(sectionCounts).hasSize(28).allSatisfy(section -> {
+            assertThat(section.seats()).isEqualTo(150);
+            assertThat(section.rows()).isEqualTo(15);
+            assertThat(section.available()).isEqualTo(150);
+        });
+        for (var entry : countsBySchedule.entrySet()) {
+            assertThat(entry.getValue()).extracting(SectionCount::section)
+                    .containsExactlyInAnyOrder("F1", "F2", "F3", "F4", "S1", "S2", "G");
+
+            for (String rowNumber : List.of("1", "8", "15")) {
+                assertThat(jdbc.queryForList("""
+                        SELECT seat_num FROM seat
+                        WHERE schedule_id = ? AND section = 'F2' AND row_num = ?
+                        ORDER BY seat_num
+                        """, Integer.class, entry.getKey(), rowNumber))
+                        .containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+            }
+        }
+
+        var scheduleIds = countsBySchedule.keySet().stream().sorted().toList();
+        jdbc.update("""
+                UPDATE seat SET status = 'RESERVED'
+                WHERE schedule_id = ? AND section = 'F2' AND row_num = '1' AND seat_num = 3
+                """, scheduleIds.getFirst());
+        assertThat(jdbc.queryForObject("""
+                SELECT status FROM seat
+                WHERE schedule_id = ? AND section = 'F2' AND row_num = '1' AND seat_num = 3
+                """, String.class, scheduleIds.get(1))).isEqualTo("AVAILABLE");
+    }
+
+    @Test
+    void rollsBackThePerformanceSchedulesPricesAndSeatsWhenSeatCreationFails() {
+        String venue = "좌석 생성 롤백 공연장";
+        int existingSchedules = jdbc.queryForObject("SELECT COUNT(*) FROM schedule", Integer.class);
+        int existingPrices = jdbc.queryForObject("SELECT COUNT(*) FROM price", Integer.class);
+        int existingSeats = jdbc.queryForObject("SELECT COUNT(*) FROM seat", Integer.class);
+        var calls = new AtomicInteger();
+        doAnswer(invocation -> {
+            invocation.callRealMethod();
+            if (calls.incrementAndGet() == 2) {
+                throw new DataIntegrityViolationException("Seat creation failed");
+            }
+            return null;
+        }).when(scheduleSeatRepository).createForSchedule(anyLong());
+
+        assertThatThrownBy(() -> register(adminId, request(venue, """
+                {"startAt":"2027-01-05T19:30:00+09:00"},
+                {"startAt":"2027-01-06T19:30:00+09:00"}
+                """)))
+                .hasRootCauseInstanceOf(DataIntegrityViolationException.class);
+
+        assertThat(calls.get()).isEqualTo(2);
+        assertThat(performanceCount(venue)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM schedule", Integer.class)).isEqualTo(existingSchedules);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM price", Integer.class)).isEqualTo(existingPrices);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM seat", Integer.class)).isEqualTo(existingSeats);
     }
 
     @Test
