@@ -25,7 +25,7 @@
 --   8. demo.user 예매 내역 42건 (내 예매 내역 무한 스크롤용)
 --   9. 관리자 예매 조회용 예매 (인기 공연 1개는 상태마다 여러 페이지, 나머지는 공연마다 4~20건)
 --   10. 좌석 상태 맞추기
---   11. 포스터 키 (이미지는 S3 버킷의 seed/ 아래, 원본은 scripts/seed-posters/)
+--   11. 포스터 키 (이미지는 S3 버킷의 posters/seed/ 아래, 원본은 scripts/seed-posters/)
 
 
 -- ============================================
@@ -154,7 +154,7 @@ WHERE performance_id > @closed_id;
 INSERT INTO price (performance_id, section, price)
 SELECT p.performance_id, s.section, s.price
 FROM performance AS p
-CROSS JOIN (
+         CROSS JOIN (
     SELECT 'F1' AS section, 170000 AS price
     UNION ALL SELECT 'F2', 170000
     UNION ALL SELECT 'F3', 170000
@@ -169,13 +169,13 @@ WHERE p.performance_id IN (@upcoming_id, @sold_out_id, @closed_id);
 INSERT INTO price (performance_id, section, price)
 SELECT p.performance_id, s.section,
        s.base_price + CASE p.genre
-           WHEN 'K_POP' THEN 20000
-           WHEN 'HIPHOP_RANDB' THEN 0
-           WHEN 'VALLAD' THEN -10000
-           ELSE -30000
-       END
+                          WHEN 'K_POP' THEN 20000
+                          WHEN 'HIPHOP_RANDB' THEN 0
+                          WHEN 'VALLAD' THEN -10000
+                          ELSE -30000
+           END
 FROM performance AS p
-CROSS JOIN (
+         CROSS JOIN (
     SELECT 'F1' AS section, 160000 AS base_price
     UNION ALL SELECT 'F2', 160000
     UNION ALL SELECT 'F3', 160000
@@ -208,72 +208,72 @@ SELECT schedule_id INTO @closed_schedule_id FROM schedule WHERE performance_id =
 INSERT INTO schedule (start_at, performance_id)
 SELECT v.start_at, p.performance_id
 FROM (
-    SELECT '2026-12-10 19:00:00' AS start_at, '별빛 쇼케이스' AS title
-    UNION ALL SELECT '2026-12-12 18:00:00', '언더그라운드 사이퍼'
-    UNION ALL SELECT '2026-12-13 18:00:00', '언더그라운드 사이퍼'
-    UNION ALL SELECT '2026-12-14 19:00:00', '겨울 편지'
-    UNION ALL SELECT '2026-12-16 18:00:00', '재즈 인 더 시티'
-    UNION ALL SELECT '2026-12-18 19:00:00', '루키 데뷔 콘서트'
-    UNION ALL SELECT '2026-12-19 19:00:00', '루키 데뷔 콘서트'
-    UNION ALL SELECT '2026-12-20 18:00:00', '소울 앤 그루브'
-    UNION ALL SELECT '2027-05-13 19:00:00', '오래된 노래'
-    UNION ALL SELECT '2026-09-08 18:00:00', '클래식 갈라'
-    UNION ALL SELECT '2026-12-26 19:00:00', '네온 시티 라이브'
-    UNION ALL SELECT '2026-12-28 18:00:00', '비트 메이커스 나이트'
-    UNION ALL SELECT '2026-12-30 19:00:00', '그리움의 온도'
-    UNION ALL SELECT '2026-12-31 19:00:00', '그리움의 온도'
-    UNION ALL SELECT '2027-01-01 18:00:00', '인디 밴드 페스티벌'
-    UNION ALL SELECT '2027-01-03 19:00:00', '아이돌 페스타'
-    UNION ALL SELECT '2027-01-05 18:00:00', '미드나잇 R&B'
-    UNION ALL SELECT '2027-01-06 18:00:00', '미드나잇 R&B'
-    UNION ALL SELECT '2027-05-29 19:00:00', '피아노와 목소리'
-    UNION ALL SELECT '2026-09-16 18:00:00', '어쿠스틱 피크닉'
-    UNION ALL SELECT '2027-01-11 19:00:00', '드림 스테이지'
-    UNION ALL SELECT '2027-01-12 19:00:00', '드림 스테이지'
-    UNION ALL SELECT '2027-01-13 18:00:00', '랩 배틀 파이널'
-    UNION ALL SELECT '2027-01-15 19:00:00', '별이 지는 밤'
-    UNION ALL SELECT '2027-01-17 18:00:00', '뮤지컬 넘버 콘서트'
-    UNION ALL SELECT '2027-01-18 18:00:00', '뮤지컬 넘버 콘서트'
-    UNION ALL SELECT '2027-01-19 19:00:00', '퍼플 나이트'
-    UNION ALL SELECT '2027-01-21 18:00:00', '스트릿 사운드'
-    UNION ALL SELECT '2027-06-14 19:00:00', '다시 봄'
-    UNION ALL SELECT '2027-06-15 19:00:00', '다시 봄'
-    UNION ALL SELECT '2026-09-24 18:00:00', '록 스피릿'
-    UNION ALL SELECT '2027-01-27 19:00:00', '스타트라인 콘서트'
-    UNION ALL SELECT '2027-01-29 18:00:00', '그루브 시티'
-    UNION ALL SELECT '2027-01-30 18:00:00', '그루브 시티'
-    UNION ALL SELECT '2027-01-31 19:00:00', '작은 위로'
-    UNION ALL SELECT '2027-02-02 18:00:00', '시네마 OST 콘서트'
-    UNION ALL SELECT '2027-02-04 19:00:00', '하이라이트 리런'
-    UNION ALL SELECT '2027-02-05 19:00:00', '하이라이트 리런'
-    UNION ALL SELECT '2027-02-06 18:00:00', '블루 노트 세션'
-    UNION ALL SELECT '2027-06-30 19:00:00', '우리의 이야기'
-    UNION ALL SELECT '2026-10-02 18:00:00', '국악 퓨전 무대'
-    UNION ALL SELECT '2027-02-12 19:00:00', '첫눈 콘서트'
-    UNION ALL SELECT '2027-02-14 18:00:00', '크루 쇼케이스'
-    UNION ALL SELECT '2027-02-16 19:00:00', '고요한 밤의 노래'
-    UNION ALL SELECT '2027-02-17 19:00:00', '고요한 밤의 노래'
-    UNION ALL SELECT '2027-02-18 18:00:00', '일렉트로닉 나이트'
-    UNION ALL SELECT '2027-02-20 19:00:00', '뉴이어 카운트다운'
-    UNION ALL SELECT '2027-02-22 18:00:00', '플로우 페스티벌'
-    UNION ALL SELECT '2027-02-23 18:00:00', '플로우 페스티벌'
-    UNION ALL SELECT '2027-07-16 19:00:00', '기억의 정원'
-    UNION ALL SELECT '2026-10-10 18:00:00', '아카펠라 하모니'
-    UNION ALL SELECT '2027-02-28 19:00:00', '팬미팅 우리의 계절'
-    UNION ALL SELECT '2027-03-01 19:00:00', '팬미팅 우리의 계절'
-    UNION ALL SELECT '2027-03-02 18:00:00', '레이트 나이트 잼'
-    UNION ALL SELECT '2027-03-04 19:00:00', '손편지 콘서트'
-    UNION ALL SELECT '2027-03-06 18:00:00', '오케스트라 신년 음악회'
-    UNION ALL SELECT '2027-03-07 18:00:00', '오케스트라 신년 음악회'
-    UNION ALL SELECT '2027-03-08 19:00:00', '글로우 업 투어'
-    UNION ALL SELECT '2027-03-10 18:00:00', '붐뱁 리턴즈'
-    UNION ALL SELECT '2027-08-01 19:00:00', '따뜻한 겨울'
-    UNION ALL SELECT '2027-08-02 19:00:00', '따뜻한 겨울'
-    UNION ALL SELECT '2026-10-18 18:00:00', '코미디 뮤직 쇼'
-) AS v
-JOIN performance AS p
-    ON p.title = v.title
-   AND p.performance_id >= @scroll_first_id;
+         SELECT '2026-12-10 19:00:00' AS start_at, '별빛 쇼케이스' AS title
+         UNION ALL SELECT '2026-12-12 18:00:00', '언더그라운드 사이퍼'
+         UNION ALL SELECT '2026-12-13 18:00:00', '언더그라운드 사이퍼'
+         UNION ALL SELECT '2026-12-14 19:00:00', '겨울 편지'
+         UNION ALL SELECT '2026-12-16 18:00:00', '재즈 인 더 시티'
+         UNION ALL SELECT '2026-12-18 19:00:00', '루키 데뷔 콘서트'
+         UNION ALL SELECT '2026-12-19 19:00:00', '루키 데뷔 콘서트'
+         UNION ALL SELECT '2026-12-20 18:00:00', '소울 앤 그루브'
+         UNION ALL SELECT '2027-05-13 19:00:00', '오래된 노래'
+         UNION ALL SELECT '2026-09-08 18:00:00', '클래식 갈라'
+         UNION ALL SELECT '2026-12-26 19:00:00', '네온 시티 라이브'
+         UNION ALL SELECT '2026-12-28 18:00:00', '비트 메이커스 나이트'
+         UNION ALL SELECT '2026-12-30 19:00:00', '그리움의 온도'
+         UNION ALL SELECT '2026-12-31 19:00:00', '그리움의 온도'
+         UNION ALL SELECT '2027-01-01 18:00:00', '인디 밴드 페스티벌'
+         UNION ALL SELECT '2027-01-03 19:00:00', '아이돌 페스타'
+         UNION ALL SELECT '2027-01-05 18:00:00', '미드나잇 R&B'
+         UNION ALL SELECT '2027-01-06 18:00:00', '미드나잇 R&B'
+         UNION ALL SELECT '2027-05-29 19:00:00', '피아노와 목소리'
+         UNION ALL SELECT '2026-09-16 18:00:00', '어쿠스틱 피크닉'
+         UNION ALL SELECT '2027-01-11 19:00:00', '드림 스테이지'
+         UNION ALL SELECT '2027-01-12 19:00:00', '드림 스테이지'
+         UNION ALL SELECT '2027-01-13 18:00:00', '랩 배틀 파이널'
+         UNION ALL SELECT '2027-01-15 19:00:00', '별이 지는 밤'
+         UNION ALL SELECT '2027-01-17 18:00:00', '뮤지컬 넘버 콘서트'
+         UNION ALL SELECT '2027-01-18 18:00:00', '뮤지컬 넘버 콘서트'
+         UNION ALL SELECT '2027-01-19 19:00:00', '퍼플 나이트'
+         UNION ALL SELECT '2027-01-21 18:00:00', '스트릿 사운드'
+         UNION ALL SELECT '2027-06-14 19:00:00', '다시 봄'
+         UNION ALL SELECT '2027-06-15 19:00:00', '다시 봄'
+         UNION ALL SELECT '2026-09-24 18:00:00', '록 스피릿'
+         UNION ALL SELECT '2027-01-27 19:00:00', '스타트라인 콘서트'
+         UNION ALL SELECT '2027-01-29 18:00:00', '그루브 시티'
+         UNION ALL SELECT '2027-01-30 18:00:00', '그루브 시티'
+         UNION ALL SELECT '2027-01-31 19:00:00', '작은 위로'
+         UNION ALL SELECT '2027-02-02 18:00:00', '시네마 OST 콘서트'
+         UNION ALL SELECT '2027-02-04 19:00:00', '하이라이트 리런'
+         UNION ALL SELECT '2027-02-05 19:00:00', '하이라이트 리런'
+         UNION ALL SELECT '2027-02-06 18:00:00', '블루 노트 세션'
+         UNION ALL SELECT '2027-06-30 19:00:00', '우리의 이야기'
+         UNION ALL SELECT '2026-10-02 18:00:00', '국악 퓨전 무대'
+         UNION ALL SELECT '2027-02-12 19:00:00', '첫눈 콘서트'
+         UNION ALL SELECT '2027-02-14 18:00:00', '크루 쇼케이스'
+         UNION ALL SELECT '2027-02-16 19:00:00', '고요한 밤의 노래'
+         UNION ALL SELECT '2027-02-17 19:00:00', '고요한 밤의 노래'
+         UNION ALL SELECT '2027-02-18 18:00:00', '일렉트로닉 나이트'
+         UNION ALL SELECT '2027-02-20 19:00:00', '뉴이어 카운트다운'
+         UNION ALL SELECT '2027-02-22 18:00:00', '플로우 페스티벌'
+         UNION ALL SELECT '2027-02-23 18:00:00', '플로우 페스티벌'
+         UNION ALL SELECT '2027-07-16 19:00:00', '기억의 정원'
+         UNION ALL SELECT '2026-10-10 18:00:00', '아카펠라 하모니'
+         UNION ALL SELECT '2027-02-28 19:00:00', '팬미팅 우리의 계절'
+         UNION ALL SELECT '2027-03-01 19:00:00', '팬미팅 우리의 계절'
+         UNION ALL SELECT '2027-03-02 18:00:00', '레이트 나이트 잼'
+         UNION ALL SELECT '2027-03-04 19:00:00', '손편지 콘서트'
+         UNION ALL SELECT '2027-03-06 18:00:00', '오케스트라 신년 음악회'
+         UNION ALL SELECT '2027-03-07 18:00:00', '오케스트라 신년 음악회'
+         UNION ALL SELECT '2027-03-08 19:00:00', '글로우 업 투어'
+         UNION ALL SELECT '2027-03-10 18:00:00', '붐뱁 리턴즈'
+         UNION ALL SELECT '2027-08-01 19:00:00', '따뜻한 겨울'
+         UNION ALL SELECT '2027-08-02 19:00:00', '따뜻한 겨울'
+         UNION ALL SELECT '2026-10-18 18:00:00', '코미디 뮤직 쇼'
+     ) AS v
+         JOIN performance AS p
+              ON p.title = v.title
+                  AND p.performance_id >= @scroll_first_id;
 
 
 -- ============================================
@@ -290,7 +290,7 @@ WITH RECURSIVE n AS (
 )
 SELECT sec.section, CAST(r.i AS CHAR), c.i, 'AVAILABLE', NULL, NULL, s.schedule_id
 FROM schedule AS s
-CROSS JOIN (
+         CROSS JOIN (
     SELECT 'F1' AS section
     UNION ALL SELECT 'F2'
     UNION ALL SELECT 'F3'
@@ -299,8 +299,8 @@ CROSS JOIN (
     UNION ALL SELECT 'S2'
     UNION ALL SELECT 'G'
 ) AS sec
-JOIN n AS r ON r.i <= 15
-JOIN n AS c ON c.i <= 10
+         JOIN n AS r ON r.i <= 15
+         JOIN n AS c ON c.i <= 10
 WHERE NOT EXISTS (
     SELECT 1
     FROM seat AS existing
@@ -331,20 +331,20 @@ FROM (
     SELECT DISTINCT (ROW_NUMBER() OVER (ORDER BY section, CAST(row_num AS UNSIGNED), seat_num) - 1) DIV 4 AS grp
     FROM seat
     WHERE schedule_id = @sold_out_schedule_id
-) AS g
-LEFT JOIN member AS m
-    ON m.email = CONCAT('load', LPAD(g.grp, 3, '0'), '@example.com');
+    ) AS g
+    LEFT JOIN member AS m
+ON m.email = CONCAT('load', LPAD(g.grp, 3, '0'), '@example.com');
 
 INSERT INTO reservation_seat (reservation_id, seat_id)
 SELECT r.reservation_id, t.seat_id
 FROM (
-    SELECT seat_id, (ROW_NUMBER() OVER (ORDER BY section, CAST(row_num AS UNSIGNED), seat_num) - 1) DIV 4 AS grp
-    FROM seat
-    WHERE schedule_id = @sold_out_schedule_id
-) AS t
-JOIN reservation AS r
-    ON r.schedule_id = @sold_out_schedule_id
-   AND r.reserved_at = @sold_out_base + INTERVAL t.grp * 2 HOUR;
+         SELECT seat_id, (ROW_NUMBER() OVER (ORDER BY section, CAST(row_num AS UNSIGNED), seat_num) - 1) DIV 4 AS grp
+         FROM seat
+         WHERE schedule_id = @sold_out_schedule_id
+     ) AS t
+         JOIN reservation AS r
+              ON r.schedule_id = @sold_out_schedule_id
+                  AND r.reserved_at = @sold_out_base + INTERVAL t.grp * 2 HOUR;
 
 
 -- ============================================
@@ -365,25 +365,25 @@ SELECT
 FROM (
     SELECT DISTINCT grp
     FROM (
-        SELECT (ROW_NUMBER() OVER (ORDER BY CAST(row_num AS UNSIGNED), seat_num) - 1) DIV 2 AS grp
-        FROM seat
-        WHERE schedule_id = @closed_schedule_id AND section = 'G'
+    SELECT (ROW_NUMBER() OVER (ORDER BY CAST(row_num AS UNSIGNED), seat_num) - 1) DIV 2 AS grp
+    FROM seat
+    WHERE schedule_id = @closed_schedule_id AND section = 'G'
     ) AS numbered
     WHERE grp < 30
-) AS g
-LEFT JOIN member AS m
-    ON m.email = CONCAT('load', LPAD(g.grp, 3, '0'), '@example.com');
+    ) AS g
+    LEFT JOIN member AS m
+ON m.email = CONCAT('load', LPAD(g.grp, 3, '0'), '@example.com');
 
 INSERT INTO reservation_seat (reservation_id, seat_id)
 SELECT r.reservation_id, t.seat_id
 FROM (
-    SELECT seat_id, (ROW_NUMBER() OVER (ORDER BY CAST(row_num AS UNSIGNED), seat_num) - 1) DIV 2 AS grp
-    FROM seat
-    WHERE schedule_id = @closed_schedule_id AND section = 'G'
-) AS t
-JOIN reservation AS r
-    ON r.schedule_id = @closed_schedule_id
-   AND r.reserved_at = @closed_base + INTERVAL t.grp * 12 HOUR
+         SELECT seat_id, (ROW_NUMBER() OVER (ORDER BY CAST(row_num AS UNSIGNED), seat_num) - 1) DIV 2 AS grp
+         FROM seat
+         WHERE schedule_id = @closed_schedule_id AND section = 'G'
+     ) AS t
+         JOIN reservation AS r
+              ON r.schedule_id = @closed_schedule_id
+                  AND r.reserved_at = @closed_base + INTERVAL t.grp * 12 HOUR
 WHERE t.grp < 30;
 
 -- 6, 7번 예매의 결제 (모두 PAID)
@@ -391,10 +391,10 @@ INSERT INTO payment
 (paid_amount, cancel_fee, refund_amount, status, paid_at, refunded_at, reservation_id)
 SELECT SUM(pr.price), 0, 0, 'PAID', r.reserved_at + INTERVAL 1 MINUTE, NULL, r.reservation_id
 FROM reservation AS r
-JOIN schedule AS sc ON sc.schedule_id = r.schedule_id
-JOIN reservation_seat AS rs ON rs.reservation_id = r.reservation_id
-JOIN seat AS st ON st.seat_id = rs.seat_id
-JOIN price AS pr ON pr.performance_id = sc.performance_id AND pr.section = st.section
+    JOIN schedule AS sc ON sc.schedule_id = r.schedule_id
+    JOIN reservation_seat AS rs ON rs.reservation_id = r.reservation_id
+    JOIN seat AS st ON st.seat_id = rs.seat_id
+    JOIN price AS pr ON pr.performance_id = sc.performance_id AND pr.section = st.section
 WHERE r.schedule_id IN (@sold_out_schedule_id, @closed_schedule_id)
 GROUP BY r.reservation_id, r.reserved_at;
 
@@ -413,14 +413,14 @@ GROUP BY r.reservation_id, r.reserved_at;
 DROP TABLE IF EXISTS seed_demo_history;
 
 CREATE TABLE seed_demo_history (
-    title VARCHAR(100) NOT NULL,
-    start_at DATETIME NOT NULL,
-    payment_status VARCHAR(20) NOT NULL,
-    reserved_at DATETIME NOT NULL,
-    canceled_at DATETIME NULL,
-    refunded_at DATETIME NULL,
-    section VARCHAR(2) NOT NULL,
-    seat_count INT NOT NULL
+                                   title VARCHAR(100) NOT NULL,
+                                   start_at DATETIME NOT NULL,
+                                   payment_status VARCHAR(20) NOT NULL,
+                                   reserved_at DATETIME NOT NULL,
+                                   canceled_at DATETIME NULL,
+                                   refunded_at DATETIME NULL,
+                                   section VARCHAR(2) NOT NULL,
+                                   seat_count INT NOT NULL
 );
 
 INSERT INTO seed_demo_history
@@ -473,23 +473,23 @@ INSERT INTO reservation
 (status, reserved_at, canceled_at, member_id, schedule_id)
 SELECT IF(h.payment_status = 'PAID', 'CONFIRMED', 'CANCELED'), h.reserved_at, h.canceled_at, @demo_user, s.schedule_id
 FROM seed_demo_history AS h
-JOIN performance AS p ON p.title = h.title AND p.performance_id >= @scroll_first_id
-JOIN schedule AS s ON s.performance_id = p.performance_id AND s.start_at = h.start_at;
+         JOIN performance AS p ON p.title = h.title AND p.performance_id >= @scroll_first_id
+         JOIN schedule AS s ON s.performance_id = p.performance_id AND s.start_at = h.start_at;
 
 INSERT INTO reservation_seat (reservation_id, seat_id)
 SELECT r.reservation_id, st.seat_id
 FROM seed_demo_history AS h
-JOIN performance AS p ON p.title = h.title AND p.performance_id >= @scroll_first_id
-JOIN schedule AS s ON s.performance_id = p.performance_id AND s.start_at = h.start_at
-JOIN reservation AS r
-    ON r.member_id = @demo_user
-   AND r.schedule_id = s.schedule_id
-   AND r.reserved_at = h.reserved_at
-JOIN seat AS st
-    ON st.schedule_id = s.schedule_id
-   AND st.section = h.section
-   AND st.row_num = '1'
-   AND st.seat_num <= h.seat_count;
+         JOIN performance AS p ON p.title = h.title AND p.performance_id >= @scroll_first_id
+         JOIN schedule AS s ON s.performance_id = p.performance_id AND s.start_at = h.start_at
+         JOIN reservation AS r
+              ON r.member_id = @demo_user
+                  AND r.schedule_id = s.schedule_id
+                  AND r.reserved_at = h.reserved_at
+         JOIN seat AS st
+              ON st.schedule_id = s.schedule_id
+                  AND st.section = h.section
+                  AND st.row_num = '1'
+                  AND st.seat_num <= h.seat_count;
 
 -- 수수료율: 취소일부터 공연 날짜까지 남은 일수로 정한다 (#27 CancelFeePolicy와 같은 규칙)
 INSERT INTO payment
@@ -504,29 +504,29 @@ SELECT
     t.reservation_id
 FROM (
     SELECT
-        r.reservation_id,
-        h.payment_status,
-        h.reserved_at,
-        h.refunded_at,
-        SUM(pr.price) AS paid_amount,
-        CASE
-            WHEN h.payment_status = 'PAID' THEN 0
-            WHEN DATEDIFF(DATE(h.start_at), DATE(h.canceled_at)) >= 7 THEN 0
-            WHEN DATEDIFF(DATE(h.start_at), DATE(h.canceled_at)) >= 3 THEN SUM(pr.price) * 10 DIV 100
-            ELSE SUM(pr.price) * 30 DIV 100
-        END AS cancel_fee
+    r.reservation_id,
+    h.payment_status,
+    h.reserved_at,
+    h.refunded_at,
+    SUM(pr.price) AS paid_amount,
+    CASE
+    WHEN h.payment_status = 'PAID' THEN 0
+    WHEN DATEDIFF(DATE(h.start_at), DATE(h.canceled_at)) >= 7 THEN 0
+    WHEN DATEDIFF(DATE(h.start_at), DATE(h.canceled_at)) >= 3 THEN SUM(pr.price) * 10 DIV 100
+    ELSE SUM(pr.price) * 30 DIV 100
+    END AS cancel_fee
     FROM seed_demo_history AS h
     JOIN performance AS p ON p.title = h.title AND p.performance_id >= @scroll_first_id
     JOIN schedule AS s ON s.performance_id = p.performance_id AND s.start_at = h.start_at
     JOIN reservation AS r
-        ON r.member_id = @demo_user
-       AND r.schedule_id = s.schedule_id
-       AND r.reserved_at = h.reserved_at
+    ON r.member_id = @demo_user
+    AND r.schedule_id = s.schedule_id
+    AND r.reserved_at = h.reserved_at
     JOIN reservation_seat AS rs ON rs.reservation_id = r.reservation_id
     JOIN seat AS st ON st.seat_id = rs.seat_id
     JOIN price AS pr ON pr.performance_id = p.performance_id AND pr.section = st.section
     GROUP BY r.reservation_id, h.payment_status, h.reserved_at, h.refunded_at, h.start_at, h.canceled_at
-) AS t;
+    ) AS t;
 
 DROP TABLE seed_demo_history;
 
@@ -547,14 +547,14 @@ DROP TABLE seed_demo_history;
 DROP TABLE IF EXISTS seed_bulk_plan;
 
 CREATE TABLE seed_bulk_plan (
-    schedule_id BIGINT NOT NULL,
-    k INT NOT NULL,
-    member_id BIGINT NOT NULL,
-    payment_status VARCHAR(20) NOT NULL,
-    reserved_at DATETIME NOT NULL,
-    canceled_at DATETIME NULL,
-    refunded_at DATETIME NULL,
-    PRIMARY KEY (schedule_id, k)
+                                schedule_id BIGINT NOT NULL,
+                                k INT NOT NULL,
+                                member_id BIGINT NOT NULL,
+                                payment_status VARCHAR(20) NOT NULL,
+                                reserved_at DATETIME NOT NULL,
+                                canceled_at DATETIME NULL,
+                                refunded_at DATETIME NULL,
+                                PRIMARY KEY (schedule_id, k)
 );
 
 INSERT INTO seed_bulk_plan
@@ -573,18 +573,18 @@ SELECT
     IF(t.payment_status = 'PAID', NULL, t.reserved_at + INTERVAL 1 DAY),
     IF(t.payment_status = 'REFUNDED', t.reserved_at + INTERVAL 2 DAY, NULL)
 FROM n
-JOIN (
+         JOIN (
     SELECT
         s.schedule_id,
         p.status AS performance_status,
         CASE WHEN p.title = '언더그라운드 사이퍼' THEN 180 ELSE 4 + MOD(p.performance_id * 7, 17) END AS reservation_count,
         LEAST(s.start_at - INTERVAL 3 DAY, TIMESTAMP('2026-11-20 00:00:00')) AS base_at
     FROM schedule AS s
-    JOIN performance AS p ON p.performance_id = s.performance_id
+             JOIN performance AS p ON p.performance_id = s.performance_id
     WHERE p.performance_id >= @scroll_first_id
       AND p.status IN ('ON_SALE', 'CLOSED')
 ) AS sch ON n.k < sch.reservation_count
-CROSS JOIN LATERAL (
+         CROSS JOIN LATERAL (
     SELECT
         sch.schedule_id,
         CASE
@@ -592,10 +592,10 @@ CROSS JOIN LATERAL (
             WHEN MOD(n.k, 10) IN (3, 7) THEN 'CANCELED'
             WHEN MOD(n.k, 10) = 5 THEN 'REFUNDED'
             ELSE 'PAID'
-        END AS payment_status,
+            END AS payment_status,
         sch.base_at - INTERVAL n.k * 7 HOUR AS reserved_at
-) AS t
-JOIN member AS m ON m.email = CONCAT('load', LPAD(n.k + 1, 3, '0'), '@example.com');
+    ) AS t
+    JOIN member AS m ON m.email = CONCAT('load', LPAD(n.k + 1, 3, '0'), '@example.com');
 
 INSERT INTO reservation
 (status, reserved_at, canceled_at, member_id, schedule_id)
@@ -607,11 +607,11 @@ ORDER BY schedule_id, k;
 INSERT INTO reservation_seat (reservation_id, seat_id)
 SELECT r.reservation_id, st.seat_id
 FROM seed_bulk_plan AS b
-JOIN reservation AS r
-    ON r.member_id = b.member_id
-   AND r.schedule_id = b.schedule_id
-   AND r.reserved_at = b.reserved_at
-JOIN (
+         JOIN reservation AS r
+              ON r.member_id = b.member_id
+                  AND r.schedule_id = b.schedule_id
+                  AND r.reserved_at = b.reserved_at
+         JOIN (
     SELECT seat_id, schedule_id,
            ROW_NUMBER() OVER (PARTITION BY schedule_id
                               ORDER BY FIELD(section, 'F1', 'F2', 'F3', 'F4', 'S1', 'S2', 'G'),
@@ -620,8 +620,8 @@ JOIN (
     WHERE row_num <> '1'
       AND schedule_id IN (SELECT DISTINCT schedule_id FROM seed_bulk_plan)
 ) AS st
-    ON st.schedule_id = b.schedule_id
-   AND st.rn IN (b.k * 2 + 1, b.k * 2 + 2);
+              ON st.schedule_id = b.schedule_id
+                  AND st.rn IN (b.k * 2 + 1, b.k * 2 + 2);
 
 INSERT INTO payment
 (paid_amount, cancel_fee, refund_amount, status, paid_at, refunded_at, reservation_id)
@@ -635,28 +635,28 @@ SELECT
     t.reservation_id
 FROM (
     SELECT
-        r.reservation_id,
-        b.payment_status,
-        b.reserved_at,
-        b.refunded_at,
-        SUM(pr.price) AS paid_amount,
-        CASE
-            WHEN b.payment_status = 'PAID' THEN 0
-            WHEN DATEDIFF(DATE(s.start_at), DATE(b.canceled_at)) >= 7 THEN 0
-            WHEN DATEDIFF(DATE(s.start_at), DATE(b.canceled_at)) >= 3 THEN SUM(pr.price) * 10 DIV 100
-            ELSE SUM(pr.price) * 30 DIV 100
-        END AS cancel_fee
+    r.reservation_id,
+    b.payment_status,
+    b.reserved_at,
+    b.refunded_at,
+    SUM(pr.price) AS paid_amount,
+    CASE
+    WHEN b.payment_status = 'PAID' THEN 0
+    WHEN DATEDIFF(DATE(s.start_at), DATE(b.canceled_at)) >= 7 THEN 0
+    WHEN DATEDIFF(DATE(s.start_at), DATE(b.canceled_at)) >= 3 THEN SUM(pr.price) * 10 DIV 100
+    ELSE SUM(pr.price) * 30 DIV 100
+    END AS cancel_fee
     FROM seed_bulk_plan AS b
     JOIN reservation AS r
-        ON r.member_id = b.member_id
-       AND r.schedule_id = b.schedule_id
-       AND r.reserved_at = b.reserved_at
+    ON r.member_id = b.member_id
+    AND r.schedule_id = b.schedule_id
+    AND r.reserved_at = b.reserved_at
     JOIN schedule AS s ON s.schedule_id = r.schedule_id
     JOIN reservation_seat AS rs ON rs.reservation_id = r.reservation_id
     JOIN seat AS st ON st.seat_id = rs.seat_id
     JOIN price AS pr ON pr.performance_id = s.performance_id AND pr.section = st.section
     GROUP BY r.reservation_id, b.payment_status, b.reserved_at, b.refunded_at, b.canceled_at, s.start_at
-) AS t;
+    ) AS t;
 
 DROP TABLE seed_bulk_plan;
 
@@ -671,7 +671,7 @@ SET status = 'RESERVED'
 WHERE seat_id IN (
     SELECT rs.seat_id
     FROM reservation_seat AS rs
-    JOIN payment AS pay ON pay.reservation_id = rs.reservation_id
+             JOIN payment AS pay ON pay.reservation_id = rs.reservation_id
     WHERE pay.status = 'PAID'
 );
 
@@ -679,68 +679,68 @@ WHERE seat_id IN (
 -- ============================================
 -- 11. 포스터
 -- poster_key는 URL이 아니라 S3 객체 키다. 앱(#36 PosterStorage)이 이 키로 서명 URL을 만든다.
--- 이미지는 S3 버킷의 seed/ 아래에 수동으로 올려 두었다(seed/01.jpg ~ seed/54.jpg 중 52장).
--- 원본 파일은 scripts/seed-posters/에 있다. 버킷을 새로 만들면 이 파일들을 seed/에 다시 올린다.
--- 관리자가 등록하는 포스터는 posters/ 아래에 들어가므로(#36) 시드 이미지와 섞이지 않는다.
+-- 이미지는 S3 버킷의 posters/seed/ 아래에 수동으로 올려 두었다(posters/seed/01.jpg ~ 53.jpg 중 52장).
+-- 원본 파일은 scripts/seed-posters/에 있다. 버킷을 새로 만들면 이 파일들을 posters/seed/에 다시 올린다.
+-- 관리자가 등록하는 포스터는 posters/<UUID> 형태라(#36) 시드 이미지와 이름이 겹치지 않는다.
 -- 기본 이미지 확인용으로 '코미디 뮤직 쇼'는 포스터를 비워 둔다.
 -- 파일 번호는 처음 만든 순서 그대로라 06번은 비어 있다(S3에 이미 올린 이름을 바꾸지 않으려고).
 -- 이미 포스터가 있는 공연(관리자가 등록한 것 등)은 건드리지 않는다.
 -- ============================================
 
 UPDATE performance AS p
-JOIN (
-    SELECT '이선좌 K-POP LIVE' AS title, 'seed/01.jpg' AS poster_key
-    UNION ALL SELECT '이선좌 HIPHOP & R&B NIGHT', 'seed/02.jpg'
-    UNION ALL SELECT '이선좌 발라드 콘서트', 'seed/03.jpg'
-    UNION ALL SELECT '이선좌 K-POP 앵콜', 'seed/04.jpg'
-    UNION ALL SELECT '이선좌 가을 페스티벌', 'seed/05.jpg'
-    UNION ALL SELECT '별빛 쇼케이스', 'seed/07.jpg'
-    UNION ALL SELECT '언더그라운드 사이퍼', 'seed/08.jpg'
-    UNION ALL SELECT '겨울 편지', 'seed/09.jpg'
-    UNION ALL SELECT '재즈 인 더 시티', 'seed/10.jpg'
-    UNION ALL SELECT '루키 데뷔 콘서트', 'seed/11.jpg'
-    UNION ALL SELECT '소울 앤 그루브', 'seed/12.jpg'
-    UNION ALL SELECT '오래된 노래', 'seed/13.jpg'
-    UNION ALL SELECT '클래식 갈라', 'seed/14.jpg'
-    UNION ALL SELECT '네온 시티 라이브', 'seed/15.jpg'
-    UNION ALL SELECT '비트 메이커스 나이트', 'seed/16.jpg'
-    UNION ALL SELECT '그리움의 온도', 'seed/17.jpg'
-    UNION ALL SELECT '인디 밴드 페스티벌', 'seed/18.jpg'
-    UNION ALL SELECT '아이돌 페스타', 'seed/19.jpg'
-    UNION ALL SELECT '미드나잇 R&B', 'seed/20.jpg'
-    UNION ALL SELECT '피아노와 목소리', 'seed/21.jpg'
-    UNION ALL SELECT '어쿠스틱 피크닉', 'seed/22.jpg'
-    UNION ALL SELECT '드림 스테이지', 'seed/23.jpg'
-    UNION ALL SELECT '랩 배틀 파이널', 'seed/24.jpg'
-    UNION ALL SELECT '별이 지는 밤', 'seed/25.jpg'
-    UNION ALL SELECT '뮤지컬 넘버 콘서트', 'seed/26.jpg'
-    UNION ALL SELECT '퍼플 나이트', 'seed/27.jpg'
-    UNION ALL SELECT '스트릿 사운드', 'seed/28.jpg'
-    UNION ALL SELECT '다시 봄', 'seed/29.jpg'
-    UNION ALL SELECT '록 스피릿', 'seed/30.jpg'
-    UNION ALL SELECT '스타트라인 콘서트', 'seed/31.jpg'
-    UNION ALL SELECT '그루브 시티', 'seed/32.jpg'
-    UNION ALL SELECT '작은 위로', 'seed/33.jpg'
-    UNION ALL SELECT '시네마 OST 콘서트', 'seed/34.jpg'
-    UNION ALL SELECT '하이라이트 리런', 'seed/35.jpg'
-    UNION ALL SELECT '블루 노트 세션', 'seed/36.jpg'
-    UNION ALL SELECT '우리의 이야기', 'seed/37.jpg'
-    UNION ALL SELECT '국악 퓨전 무대', 'seed/38.jpg'
-    UNION ALL SELECT '첫눈 콘서트', 'seed/39.jpg'
-    UNION ALL SELECT '크루 쇼케이스', 'seed/40.jpg'
-    UNION ALL SELECT '고요한 밤의 노래', 'seed/41.jpg'
-    UNION ALL SELECT '일렉트로닉 나이트', 'seed/42.jpg'
-    UNION ALL SELECT '뉴이어 카운트다운', 'seed/43.jpg'
-    UNION ALL SELECT '플로우 페스티벌', 'seed/44.jpg'
-    UNION ALL SELECT '기억의 정원', 'seed/45.jpg'
-    UNION ALL SELECT '아카펠라 하모니', 'seed/46.jpg'
-    UNION ALL SELECT '팬미팅 우리의 계절', 'seed/47.jpg'
-    UNION ALL SELECT '레이트 나이트 잼', 'seed/48.jpg'
-    UNION ALL SELECT '손편지 콘서트', 'seed/49.jpg'
-    UNION ALL SELECT '오케스트라 신년 음악회', 'seed/50.jpg'
-    UNION ALL SELECT '글로우 업 투어', 'seed/51.jpg'
-    UNION ALL SELECT '붐뱁 리턴즈', 'seed/52.jpg'
-    UNION ALL SELECT '따뜻한 겨울', 'seed/53.jpg'
-) AS v ON v.title = p.title
-SET p.poster_key = v.poster_key
+    JOIN (
+    SELECT '이선좌 K-POP LIVE' AS title, 'posters/seed/01.jpg' AS poster_key
+    UNION ALL SELECT '이선좌 HIPHOP & R&B NIGHT', 'posters/seed/02.jpg'
+    UNION ALL SELECT '이선좌 발라드 콘서트', 'posters/seed/03.jpg'
+    UNION ALL SELECT '이선좌 K-POP 앵콜', 'posters/seed/04.jpg'
+    UNION ALL SELECT '이선좌 가을 페스티벌', 'posters/seed/05.jpg'
+    UNION ALL SELECT '별빛 쇼케이스', 'posters/seed/07.jpg'
+    UNION ALL SELECT '언더그라운드 사이퍼', 'posters/seed/08.jpg'
+    UNION ALL SELECT '겨울 편지', 'posters/seed/09.jpg'
+    UNION ALL SELECT '재즈 인 더 시티', 'posters/seed/10.jpg'
+    UNION ALL SELECT '루키 데뷔 콘서트', 'posters/seed/11.jpg'
+    UNION ALL SELECT '소울 앤 그루브', 'posters/seed/12.jpg'
+    UNION ALL SELECT '오래된 노래', 'posters/seed/13.jpg'
+    UNION ALL SELECT '클래식 갈라', 'posters/seed/14.jpg'
+    UNION ALL SELECT '네온 시티 라이브', 'posters/seed/15.jpg'
+    UNION ALL SELECT '비트 메이커스 나이트', 'posters/seed/16.jpg'
+    UNION ALL SELECT '그리움의 온도', 'posters/seed/17.jpg'
+    UNION ALL SELECT '인디 밴드 페스티벌', 'posters/seed/18.jpg'
+    UNION ALL SELECT '아이돌 페스타', 'posters/seed/19.jpg'
+    UNION ALL SELECT '미드나잇 R&B', 'posters/seed/20.jpg'
+    UNION ALL SELECT '피아노와 목소리', 'posters/seed/21.jpg'
+    UNION ALL SELECT '어쿠스틱 피크닉', 'posters/seed/22.jpg'
+    UNION ALL SELECT '드림 스테이지', 'posters/seed/23.jpg'
+    UNION ALL SELECT '랩 배틀 파이널', 'posters/seed/24.jpg'
+    UNION ALL SELECT '별이 지는 밤', 'posters/seed/25.jpg'
+    UNION ALL SELECT '뮤지컬 넘버 콘서트', 'posters/seed/26.jpg'
+    UNION ALL SELECT '퍼플 나이트', 'posters/seed/27.jpg'
+    UNION ALL SELECT '스트릿 사운드', 'posters/seed/28.jpg'
+    UNION ALL SELECT '다시 봄', 'posters/seed/29.jpg'
+    UNION ALL SELECT '록 스피릿', 'posters/seed/30.jpg'
+    UNION ALL SELECT '스타트라인 콘서트', 'posters/seed/31.jpg'
+    UNION ALL SELECT '그루브 시티', 'posters/seed/32.jpg'
+    UNION ALL SELECT '작은 위로', 'posters/seed/33.jpg'
+    UNION ALL SELECT '시네마 OST 콘서트', 'posters/seed/34.jpg'
+    UNION ALL SELECT '하이라이트 리런', 'posters/seed/35.jpg'
+    UNION ALL SELECT '블루 노트 세션', 'posters/seed/36.jpg'
+    UNION ALL SELECT '우리의 이야기', 'posters/seed/37.jpg'
+    UNION ALL SELECT '국악 퓨전 무대', 'posters/seed/38.jpg'
+    UNION ALL SELECT '첫눈 콘서트', 'posters/seed/39.jpg'
+    UNION ALL SELECT '크루 쇼케이스', 'posters/seed/40.jpg'
+    UNION ALL SELECT '고요한 밤의 노래', 'posters/seed/41.jpg'
+    UNION ALL SELECT '일렉트로닉 나이트', 'posters/seed/42.jpg'
+    UNION ALL SELECT '뉴이어 카운트다운', 'posters/seed/43.jpg'
+    UNION ALL SELECT '플로우 페스티벌', 'posters/seed/44.jpg'
+    UNION ALL SELECT '기억의 정원', 'posters/seed/45.jpg'
+    UNION ALL SELECT '아카펠라 하모니', 'posters/seed/46.jpg'
+    UNION ALL SELECT '팬미팅 우리의 계절', 'posters/seed/47.jpg'
+    UNION ALL SELECT '레이트 나이트 잼', 'posters/seed/48.jpg'
+    UNION ALL SELECT '손편지 콘서트', 'posters/seed/49.jpg'
+    UNION ALL SELECT '오케스트라 신년 음악회', 'posters/seed/50.jpg'
+    UNION ALL SELECT '글로우 업 투어', 'posters/seed/51.jpg'
+    UNION ALL SELECT '붐뱁 리턴즈', 'posters/seed/52.jpg'
+    UNION ALL SELECT '따뜻한 겨울', 'posters/seed/53.jpg'
+    ) AS v ON v.title = p.title
+    SET p.poster_key = v.poster_key
 WHERE p.poster_key IS NULL;

@@ -125,7 +125,7 @@ K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_PERIOD=1s K6_WEB_DASHBOARD_EXPORT=report-
 - 결제 상태: `PAID` 확정, `CANCELED` 환불 진행 중, `REFUNDED` 환불 완료. 좌석은 취소할 때 바로 반환됩니다(DFD 10.0).
   취소 수수료는 #27 정책(7일 이상 0%, 3~6일 10%, 1~2일 30%)대로 계산해 넣었습니다.
 - 좌석은 관리자 공연 등록(#25)과 같은 배치로 회차마다 1,050석(7구역 x 15열 x 10석)입니다.
-- 공연 53개 중 52개에 포스터 키(`seed/NN.jpg`)가 있습니다. 이미지는 S3 버킷의 `seed/` 아래에 올려 두었고,
+- 공연 53개 중 52개에 포스터 키(`posters/seed/NN.jpg`)가 있습니다. 이미지는 S3 버킷의 `posters/seed/` 아래에 올려 두었고,
   원본은 `scripts/seed-posters/`에 있습니다. `코미디 뮤직 쇼`는 기본 이미지 확인용으로 포스터가 없습니다.
 - 계정별 용도
 
@@ -151,7 +151,7 @@ K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_PERIOD=1s K6_WEB_DASHBOARD_EXPORT=report-
 | 이선좌 K-POP LIVE | 33 | 7 | 4 |
 | 나머지 예매 중, 종료 공연 41개 | 공연마다 5~41건 | | |
 
-  종료 공연에는 환불 진행 중 대신 환불 완료만 있고, 공연 2~5일 전 취소라 수수료(10%, 30%)가 붙어 있습니다.
-  K-POP LIVE, HIPHOP의 예매는 `demo-reset.sql`을 실행해야 생깁니다.
+종료 공연에는 환불 진행 중 대신 환불 완료만 있고, 공연 2~5일 전 취소라 수수료(10%, 30%)가 붙어 있습니다.
+K-POP LIVE, HIPHOP의 예매는 `demo-reset.sql`을 실행해야 생깁니다.
 
 - 검증 환경: k6 v1.0.0, MySQL 8.0
