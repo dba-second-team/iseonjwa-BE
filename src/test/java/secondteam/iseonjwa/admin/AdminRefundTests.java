@@ -5,12 +5,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-import secondteam.iseonjwa.reservation.service.AdminRefundService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,7 +17,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -36,9 +33,6 @@ class AdminRefundTests {
     @Autowired
     private JdbcTemplate jdbc;
 
-    @Autowired
-    private AdminRefundService refundService;
-
     @BeforeEach
     void createFixtures() {
         jdbc.update("DELETE FROM payment WHERE reservation_id BETWEEN 1401 AND 1406");
@@ -47,12 +41,13 @@ class AdminRefundTests {
         jdbc.update("DELETE FROM seat WHERE seat_id BETWEEN 1301 AND 1305");
         jdbc.update("DELETE FROM schedule WHERE schedule_id BETWEEN 1201 AND 1203");
         jdbc.update("DELETE FROM performance WHERE performance_id IN (1101, 1102)");
-        jdbc.update("DELETE FROM member WHERE member_id IN (1001, 1002)");
+        jdbc.update("DELETE FROM member WHERE member_id BETWEEN 1001 AND 1003");
 
         jdbc.update("""
                 INSERT INTO member (member_id, email, name, role, created_at, password)
                 VALUES (1001, 'refund-admin@example.test', '관리자', 'ADMIN', CURRENT_TIMESTAMP, 'unused'),
-                       (1002, 'refund-user@example.test', '예매자', 'USER', CURRENT_TIMESTAMP, 'unused')
+                       (1002, 'refund-user@example.test', '예매자', 'USER', CURRENT_TIMESTAMP, 'unused'),
+                       (1003, 'refund-new-user@example.test', '새 예매자', 'USER', CURRENT_TIMESTAMP, 'unused')
                 """);
         jdbc.update("""
                 INSERT INTO performance (performance_id, title, genre, running_time, status, venue_name,
@@ -67,9 +62,9 @@ class AdminRefundTests {
                 """);
         jdbc.update("""
                 INSERT INTO seat (seat_id, section, row_num, seat_num, status, schedule_id)
-                VALUES (1301, 'F1', '1', 1, 'RESERVED', 1201), (1302, 'F1', '1', 2, 'RESERVED', 1201),
-                       (1303, 'F1', '1', 1, 'RESERVED', 1202), (1304, 'F1', '1', 3, 'RESERVED', 1201),
-                       (1305, 'F1', '1', 1, 'RESERVED', 1203)
+                VALUES (1301, 'F1', '1', 1, 'AVAILABLE', 1201), (1302, 'F1', '1', 2, 'AVAILABLE', 1201),
+                       (1303, 'F1', '1', 1, 'AVAILABLE', 1202), (1304, 'F1', '1', 3, 'RESERVED', 1201),
+                       (1305, 'F1', '1', 1, 'AVAILABLE', 1203)
                 """);
         jdbc.update("""
                 INSERT INTO reservation (reservation_id, status, reserved_at, member_id, schedule_id)
@@ -92,7 +87,7 @@ class AdminRefundTests {
     }
 
     @Test
-    void refundsSelectedReservationsAndReleasesTheirSeatsWhileRetainingHistory() throws Exception {
+    void refundsSelectedReservationsWithoutChangingSeatsOrReservationHistory() throws Exception {
         mockMvc.perform(refund(1101, 1001, """
                         {"reservationIds":[1402,1401]}
                         """))
@@ -113,7 +108,7 @@ class AdminRefundTests {
         assertThat(jdbc.queryForObject("SELECT refunded_at FROM payment WHERE reservation_id = 1401",
                 LocalDateTime.class)).isNotNull();
         assertThat(jdbc.queryForList("SELECT status FROM seat WHERE seat_id BETWEEN 1301 AND 1305 ORDER BY seat_id",
-                String.class)).containsExactly("AVAILABLE", "AVAILABLE", "AVAILABLE", "RESERVED", "RESERVED");
+                String.class)).containsExactly("AVAILABLE", "AVAILABLE", "AVAILABLE", "RESERVED", "AVAILABLE");
         assertThat(jdbc.queryForList("SELECT seat_id FROM reservation_seat WHERE reservation_id = 1401 ORDER BY seat_id",
                 Long.class)).containsExactly(1301L, 1302L);
         assertThat(jdbc.queryForObject("SELECT status FROM reservation WHERE reservation_id = 1401", String.class))
@@ -128,7 +123,7 @@ class AdminRefundTests {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errorCode").value("REFUND_NOT_PENDING"));
 
-        assertPendingWithReservedSeats();
+        assertPending();
     }
 
     @Test
@@ -144,80 +139,15 @@ class AdminRefundTests {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("PERFORMANCE_NOT_FOUND"));
 
-        assertPendingWithReservedSeats();
+        assertPending();
     }
 
     @Test
-    void rejectsSeatAlreadyOwnedByAnotherPaidReservation() throws Exception {
-        jdbc.update("INSERT INTO reservation_seat (reservation_id, seat_id) VALUES (1403, 1301)");
-
-        mockMvc.perform(refund(1101, 1001, """
-                        {"reservationIds":[1401,1402]}
-                        """))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.errorCode").value("REFUND_SEAT_CONFLICT"));
-
-        assertPendingWithReservedSeats();
-    }
-
-    @Test
-    void rejectsASeatFromADifferentSchedule() throws Exception {
-        jdbc.update("INSERT INTO reservation_seat (reservation_id, seat_id) VALUES (1401, 1305)");
-
-        mockMvc.perform(refund(1101, 1001, """
-                        {"reservationIds":[1401]}
-                        """))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.errorCode").value("REFUND_SEAT_CONFLICT"));
-
-        assertPendingWithReservedSeats();
-        assertThat(jdbc.queryForObject("SELECT status FROM seat WHERE seat_id = 1305", String.class))
-                .isEqualTo("RESERVED");
-    }
-
-    @Test
-    void rejectsInvalidStoredCancelFee() throws Exception {
-        jdbc.update("UPDATE payment SET cancel_fee = 90001 WHERE reservation_id = 1401");
-
-        mockMvc.perform(refund(1101, 1001, """
-                        {"reservationIds":[1401]}
-                        """))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.errorCode").value("INVALID_REFUND_AMOUNT"));
-
-        assertPendingWithReservedSeats();
-    }
-
-    @Test
-    void rollbackRestoresPaymentAndSeatsIfTheDatabaseRejectsASeatUpdate() {
-        jdbc.update("UPDATE seat SET row_num = 'REFUND' WHERE seat_id = 1302");
-        jdbc.execute("""
-                ALTER TABLE seat ADD CONSTRAINT chk_refund_test_reject_release
-                CHECK (row_num <> 'REFUND' OR status <> 'AVAILABLE')
-                """);
-        try {
-            assertThatThrownBy(() -> refundService.complete(1101, List.of(1401L, 1402L)))
-                    .isInstanceOf(DataIntegrityViolationException.class);
-        } finally {
-            jdbc.execute("ALTER TABLE seat DROP CONSTRAINT chk_refund_test_reject_release");
-        }
-
-        assertPendingWithReservedSeats();
-        assertThat(jdbc.queryForObject("SELECT refunded_at FROM payment WHERE reservation_id = 1401",
-                LocalDateTime.class)).isNull();
-    }
-
-    @Test
-    void repeatedRequestCannotReleaseASeatThatHasBeenResold() throws Exception {
-        mockMvc.perform(refund(1101, 1001, """
-                        {"reservationIds":[1401]}
-                        """))
-                .andExpect(status().isOk());
-
+    void refundsOriginalReservationWithoutReleasingItsResoldSeat() throws Exception {
         jdbc.update("UPDATE seat SET status = 'RESERVED' WHERE seat_id = 1301");
         jdbc.update("""
                 INSERT INTO reservation (reservation_id, status, reserved_at, member_id, schedule_id)
-                VALUES (1406, 'CONFIRMED', CURRENT_TIMESTAMP, 1002, 1201)
+                VALUES (1406, 'CONFIRMED', CURRENT_TIMESTAMP, 1003, 1201)
                 """);
         jdbc.update("INSERT INTO reservation_seat (reservation_id, seat_id) VALUES (1406, 1301)");
         jdbc.update("""
@@ -228,12 +158,43 @@ class AdminRefundTests {
         mockMvc.perform(refund(1101, 1001, """
                         {"reservationIds":[1401]}
                         """))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.errorCode").value("REFUND_NOT_PENDING"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].status").value("REFUNDED"));
+
         assertThat(jdbc.queryForObject("SELECT status FROM seat WHERE seat_id = 1301", String.class))
                 .isEqualTo("RESERVED");
-        assertThat(jdbc.queryForObject("SELECT status FROM payment WHERE reservation_id = 1406", String.class))
-                .isEqualTo("PAID");
+        assertThat(jdbc.queryForList("""
+                SELECT status FROM payment WHERE reservation_id IN (1401, 1406) ORDER BY reservation_id
+                """, String.class)).containsExactly("REFUNDED", "PAID");
+    }
+
+    @Test
+    void rejectsAnEntireBatchWhenOneReservationHasAnInvalidCancelFee() throws Exception {
+        jdbc.update("UPDATE payment SET cancel_fee = 45001 WHERE reservation_id = 1402");
+
+        mockMvc.perform(refund(1101, 1001, """
+                        {"reservationIds":[1401,1402]}
+                        """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_REFUND_AMOUNT"));
+
+        assertPending();
+        assertThat(jdbc.queryForObject("SELECT refunded_at FROM payment WHERE reservation_id = 1401",
+                LocalDateTime.class)).isNull();
+    }
+
+    @Test
+    void rejectsARepeatedRefundRequest() throws Exception {
+        mockMvc.perform(refund(1101, 1001, """
+                        {"reservationIds":[1401]}
+                        """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(refund(1101, 1001, """
+                        {"reservationIds":[1401]}
+                        """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("REFUND_NOT_PENDING"));
     }
 
     @Test
@@ -248,8 +209,8 @@ class AdminRefundTests {
         }
         assertThat(jdbc.queryForObject("SELECT refund_amount FROM payment WHERE reservation_id = 1401", Integer.class))
                 .isEqualTo(80000);
-        assertThat(jdbc.queryForObject("SELECT status FROM seat WHERE seat_id = 1301", String.class))
-                .isEqualTo("AVAILABLE");
+        assertThat(jdbc.queryForObject("SELECT status FROM payment WHERE reservation_id = 1401", String.class))
+                .isEqualTo("REFUNDED");
     }
 
     @Test
@@ -275,7 +236,7 @@ class AdminRefundTests {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"));
 
-        assertPendingWithReservedSeats();
+        assertPending();
     }
 
     private MockHttpServletRequestBuilder refund(long performanceId, long memberId, String body) {
@@ -292,11 +253,9 @@ class AdminRefundTests {
                 """)).andReturn().getResponse().getStatus();
     }
 
-    private void assertPendingWithReservedSeats() {
+    private void assertPending() {
         assertThat(jdbc.queryForList("""
                 SELECT status FROM payment WHERE reservation_id IN (1401, 1402) ORDER BY reservation_id
                 """, String.class)).containsExactly("CANCELED", "CANCELED");
-        assertThat(jdbc.queryForList("SELECT status FROM seat WHERE seat_id BETWEEN 1301 AND 1303 ORDER BY seat_id",
-                String.class)).containsExactly("RESERVED", "RESERVED", "RESERVED");
     }
 }

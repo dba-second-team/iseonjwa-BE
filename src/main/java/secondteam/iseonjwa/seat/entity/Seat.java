@@ -45,12 +45,6 @@ public class Seat {
     @JoinColumn(name = "schedule_id", nullable = false, foreignKey = @ForeignKey(name = "R_18"))
     private Schedule schedule;
 
-    public void releaseAfterRefund() {
-        this.status = SeatStatus.AVAILABLE;
-        this.heldUntil = null;
-        this.heldBy = null;
-    }
-
     @Builder
     private Seat(SeatSection section, String rowNum, Integer seatNum, Schedule schedule) {
         this.section = section;
