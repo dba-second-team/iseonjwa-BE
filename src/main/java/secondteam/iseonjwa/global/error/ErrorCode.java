@@ -35,7 +35,8 @@ public enum ErrorCode {
     POSTER_STORAGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "포스터 저장소를 사용할 수 없습니다."),
     REFUND_NOT_PENDING(HttpStatus.CONFLICT, "환불 대기 중인 예매만 처리할 수 있습니다."),
     INVALID_REFUND_AMOUNT(HttpStatus.CONFLICT, "저장된 취소 수수료로 환불 금액을 계산할 수 없습니다."),
-    SCHEDULE_CONFLICT(HttpStatus.CONFLICT, "같은 공연장에 시간이 겹치는 회차가 있습니다.")
+    SCHEDULE_CONFLICT(HttpStatus.CONFLICT, "같은 공연장에 시간이 겹치는 회차가 있습니다."),
+    ALREADY_IN_QUEUE(HttpStatus.CONFLICT, "이미 대기열 또는 예매 작업열에 진입한 상태입니다.")
     ;
 
     private final HttpStatus status;
