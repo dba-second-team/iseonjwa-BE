@@ -29,6 +29,7 @@ public class PerformanceQueryService {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final PerformanceQueryRepository performanceQueryRepository;
+    private final PosterStorage posterStorage;
 
     public PerformanceSummaryResponse list(int page, int size) {
         if (page < 0 || size < 1 || size > MAX_PAGE_SIZE || (long) page * size > Integer.MAX_VALUE) {
@@ -70,7 +71,7 @@ public class PerformanceQueryService {
                 performance.getPerformanceId(),
                 performance.getTitle(),
                 performance.getGenre(),
-                null, // TODO: 포스터 S3 연동(#36) 머지 후 PosterStorage.readUrl(posterKey) 연결
+                posterStorage.readUrl(performance.getPosterKey()),
                 performance.getStatus(),
                 performance.getVenueName(),
                 performance.getRunningTime(),
@@ -101,7 +102,7 @@ public class PerformanceQueryService {
                 performance.getPerformanceId(),
                 performance.getTitle(),
                 performance.getGenre(),
-                null, // TODO: 포스터 S3 연동(#36) 머지 후 PosterStorage.readUrl(posterKey) 연결
+                posterStorage.readUrl(performance.getPosterKey()),
                 performance.getStatus(),
                 period == null ? null : period.getFirstStartAt().toLocalDate(),
                 period == null ? null : period.getLastStartAt().toLocalDate(),
