@@ -34,7 +34,7 @@ public interface QueueRepository {
      * @param performanceId 진입 대상 공연 ID
      * @param now           진입 기준 시각
      * @param expiresAt     신규 진입 시 부여할 만료 시각
-     * @param maxActiveSize 공연별 작업열 최대 정원
+     * @param maxActiveSize 예매 작업열 최대 정원 (전역 설정값)
      * @return 작업열 진입 시각 및 만료 시각 스냅샷
      */
     ActiveQueueAdmission enterActiveQueue(

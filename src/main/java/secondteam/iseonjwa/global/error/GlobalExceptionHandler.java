@@ -1,6 +1,7 @@
 package secondteam.iseonjwa.global.error;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -57,6 +58,13 @@ public class GlobalExceptionHandler {
     // 필수 쿼리 파라미터 누락
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ErrorResponse> handleMissingParam(MissingServletRequestParameterException e) {
+        ErrorCode code = ErrorCode.INVALID_REQUEST;
+        return ResponseEntity.status(code.getStatus()).body(ErrorResponse.of(code));
+    }
+
+    // 요청 JSON 역직렬화 실패 (예: 허용되지 않은 Enum 값, 잘못된 JSON 형식)
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleNotReadable(HttpMessageNotReadableException e) {
         ErrorCode code = ErrorCode.INVALID_REQUEST;
         return ResponseEntity.status(code.getStatus()).body(ErrorResponse.of(code));
     }
