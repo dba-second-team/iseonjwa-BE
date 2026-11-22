@@ -39,15 +39,10 @@ public class SeatService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
 
-        // 같은 회원의 매수 한도 확인을 직렬화하고, 대기 후 최신 커밋을 집계한다.
-        Member member = memberRepository.findByMemberId(memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        // 예매 확정과 잠금 순서를 맞추고, 회원 존재 여부는 좌석 상태 확인 뒤 판정한다.
+        var lockedMember = memberRepository.findByMemberId(memberId);
         Schedule schedule = scheduleRepository.findByIdWithPerformance(scheduleId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        int limit = schedule.getPerformance().getMaxTicketsPerMember();
-        if (seatIds.size() > limit) {
-            throw new BusinessException(ErrorCode.HOLD_LIMIT_EXCEEDED);
-        }
 
         List<Seat> seats = new ArrayList<>(seatIds.size());
         for (Long seatId : seatIds.stream().sorted().toList()) {
@@ -64,6 +59,8 @@ public class SeatService {
             throw new BusinessException(ErrorCode.SEAT_UNAVAILABLE);
         }
 
+        Member member = lockedMember.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        int limit = schedule.getPerformance().getMaxTicketsPerMember();
         long heldCount = seatRepository.countActiveHolds(memberId, scheduleId, now);
         long confirmedCount = reservationSeatRepository.countConfirmedSeats(memberId, scheduleId);
         if (heldCount + confirmedCount + seats.size() > limit) {

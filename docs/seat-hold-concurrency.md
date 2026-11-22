@@ -2,20 +2,22 @@
 
 API-6은 `POST /api/schedules/{scheduleId}/seats/hold`입니다. `X-Member-Id`와 `{"seatIds":[1,2]}`를 보내면 `200 OK`와 `data.seatIds`, `data.heldUntil`을 반환합니다. 만료 시각은 한국 시간입니다. 선점은 5분 동안 유효하며, 만료 전에 다시 요청하면 같은 회원도 `409 SEAT_UNAVAILABLE`을 받습니다.
 
-서비스는 회원 행을 먼저 잠그고 좌석 행은 기본 키 오름차순으로 잠급니다. `READ COMMITTED`에서 다른 요청의 커밋을 기다린 뒤 미만료 선점과 확정 예매 좌석을 집계합니다. 검증을 모두 통과하면 같은 트랜잭션에서 요청 좌석을 갱신합니다. 예매 확정도 회원 행을 먼저 잠그므로 같은 회원의 선점과 예매 확정이 동시에 매수 한도에 영향을 주지 않습니다.
+선점 흐름도의 검증 순서는 좌석 선점 가능 여부, 회원 존재 여부, 보유 매수입니다. DB 잠금은 예매 확정과 순서를 맞춰 회원 행부터 잡고, 좌석 행은 기본 키 오름차순으로 잠급니다. 같은 회원의 다른 요청이 커밋하면 `READ COMMITTED`에서 미만료 선점과 확정 예매 좌석을 집계합니다. 검증을 모두 통과하면 같은 트랜잭션에서 요청 좌석을 갱신합니다.
 
 ## 자동 테스트
 
 로컬 MySQL에 이 테스트 전용으로 빈 `iseonjwa_hold_test` 데이터베이스를 만듭니다. Flyway가 적용한 샘플 데이터를 테스트가 읽고 일부 상태를 변경합니다. 테스트 DB에만 접근할 계정으로 아래를 실행합니다.
 
 ```powershell
-$env:ISEONJWA_MYSQL_TEST_URL = 'jdbc:mysql://127.0.0.1:33306/iseonjwa_hold_test?connectTimeout=3000&socketTimeout=10000'
+$env:ISEONJWA_MYSQL_TEST_URL = 'jdbc:mysql://127.0.0.1:33306/iseonjwa_hold_test?connectTimeout=3000&socketTimeout=120000'
 $env:ISEONJWA_MYSQL_TEST_USER = '<테스트 DB 사용자>'
 $env:ISEONJWA_MYSQL_TEST_PASSWORD = '<테스트 DB 비밀번호>'
 .\gradlew.bat test --rerun-tasks
 ```
 
 포트는 테스트 서버에 맞춥니다. `ISEONJWA_MYSQL_TEST_URL`을 설정하면 기존 H2 컨텍스트 테스트와 MySQL 선점 테스트를 모두 실행합니다. Gradle 테스트 리포트의 `SeatHoldMySqlTest`에서 선점 결과를 확인하고, 해당 테스트의 로그에서 좌석과 회원 조회 SQL에 `for update`가 붙는지 확인합니다.
+
+빈 DB에서 V6 샘플 데이터 삽입이 오래 걸리면, 새 전용 테스트 DB에서 `$env:SPRING_FLYWAY_TARGET = '5'`로 V5까지 적용해 먼저 테스트할 수 있습니다. 이후 `Remove-Item Env:SPRING_FLYWAY_TARGET`으로 제한을 풀고 다시 실행하면 V6 적용도 검증할 수 있습니다.
 
 ## MySQL 세션 두 개로 재현
 

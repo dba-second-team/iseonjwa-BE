@@ -149,6 +149,25 @@ class SeatHoldMySqlTest {
     }
 
     @Test
+    void unavailableSeatsTakePriorityOverMemberAndLimitErrors() throws Exception {
+        long available = seats.get(0);
+        long reserved = seats.get(1);
+        setLimit(1);
+        jdbc.update("update seat set status = 'RESERVED' where seat_id = ?", reserved);
+        StoredSeat before = storedSeat(reserved);
+        String request = "[%d,%d]".formatted(available, reserved);
+
+        for (long member : List.of(firstMember, Long.MAX_VALUE)) {
+            hold(member, schedule, request)
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.errorCode").value("SEAT_UNAVAILABLE"));
+        }
+
+        assertThat(storedSeat(available)).isEqualTo(AVAILABLE);
+        assertThat(storedSeat(reserved)).isEqualTo(before);
+    }
+
+    @Test
     void liveHoldConflictsAndExpiredHoldCanBeAcquired() throws Exception {
         long seat = seats.getFirst();
         hold(firstMember, schedule, List.of(seat).toString()).andExpect(status().isOk());
