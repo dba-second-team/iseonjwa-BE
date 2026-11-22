@@ -2,7 +2,12 @@ package secondteam.iseonjwa.performance.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.CannotCreateTransactionException;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
 import secondteam.iseonjwa.admin.dto.PerformanceCreateRequest;
 import secondteam.iseonjwa.admin.dto.PerformanceCreateResponse;
 import secondteam.iseonjwa.global.error.BusinessException;
@@ -32,16 +37,44 @@ public class PerformanceRegistrationService {
     private final PerformanceRepository performanceRepository;
     private final ScheduleRepository scheduleRepository;
     private final PriceRepository priceRepository;
+    private final PlatformTransactionManager transactionManager;
+    private final PosterStorage posterStorage;
 
-    @Transactional
-    public PerformanceCreateResponse register(long adminId, PerformanceCreateRequest request) {
+    public PerformanceCreateResponse register(
+            long adminId, PerformanceCreateRequest request, MultipartFile poster
+    ) {
         Map<SeatSection, Integer> prices = sectionPrices(request);
         List<LocalDateTime> startTimes = request.schedules().stream()
                 .map(schedule -> schedule.startAt().atZoneSameInstant(SEOUL).toLocalDateTime())
                 .sorted()
                 .toList();
         String venueName = request.venueName().strip();
+        String posterKey = posterStorage.upload(poster);
 
+        try {
+            return new TransactionTemplate(transactionManager).execute(status -> {
+                if (posterKey != null) {
+                    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                        @Override
+                        public void afterCompletion(int completionStatus) {
+                            if (completionStatus == STATUS_ROLLED_BACK) {
+                                posterStorage.deleteAfterFailure(posterKey);
+                            }
+                        }
+                    });
+                }
+                return saveRegistration(adminId, request, prices, startTimes, venueName, posterKey);
+            });
+        } catch (CannotCreateTransactionException e) {
+            posterStorage.deleteAfterFailure(posterKey);
+            throw e;
+        }
+    }
+
+    private PerformanceCreateResponse saveRegistration(
+            long adminId, PerformanceCreateRequest request, Map<SeatSection, Integer> prices,
+            List<LocalDateTime> startTimes, String venueName, String posterKey
+    ) {
         // There is one administrator. Serialize registrations before checking venue availability.
         memberRepository.findByMemberId(adminId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
@@ -52,6 +85,7 @@ public class PerformanceRegistrationService {
                 .genre(request.genre())
                 .venueName(venueName)
                 .description(request.description())
+                .posterKey(posterKey)
                 .runningTime(request.runningTime())
                 .maxTicketsPerMember(request.maxTicketsPerMember())
                 .status(PerformanceStatus.UPCOMING)

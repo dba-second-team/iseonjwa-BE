@@ -9,10 +9,26 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.mockito.ArgumentCaptor;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,11 +37,20 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:performance-registration;MODE=MySQL")
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:performance-registration;MODE=MySQL",
+        "app.s3.bucket=test-posters"
+})
 @AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PerformanceRegistrationTests {
@@ -36,6 +61,12 @@ class PerformanceRegistrationTests {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @MockitoBean
+    private S3Client s3Client;
+
+    @MockitoBean
+    private S3Presigner s3Presigner;
 
     private long adminId;
     private long userId;
@@ -192,7 +223,7 @@ class PerformanceRegistrationTests {
     }
 
     @Test
-    void rejectsAnAttachedPosterBeforeStorageIsAvailable() throws Exception {
+    void rejectsInvalidPosterBytesBeforeUploading() throws Exception {
         var poster = new MockMultipartFile("poster", "poster.png", "image/png", new byte[]{1});
 
         mockMvc.perform(multipart(ENDPOINT)
@@ -205,6 +236,103 @@ class PerformanceRegistrationTests {
                 .andExpect(jsonPath("$.errorCode").value("INVALID_REQUEST"));
 
         assertThat(performanceCount("포스터 첨부 공연장")).isZero();
+        verifyNoInteractions(s3Client);
+    }
+
+    @Test
+    void uploadsPosterStoresItsKeyAndReturnsThePresignedUrlInTheList() throws Exception {
+        var signed = mock(PresignedGetObjectRequest.class);
+        String url = "https://test-posters.s3.ap-northeast-2.amazonaws.com/posters/test.png?signature=example";
+        when(signed.url()).thenReturn(URI.create(url).toURL());
+        when(s3Presigner.presignGetObject(any(GetObjectPresignRequest.class))).thenReturn(signed);
+        byte[] bytes = png();
+        var poster = new MockMultipartFile("poster", "client-filename.jpg", "image/jpeg", bytes);
+
+        registerWithPoster("포스터 저장 공연장", poster)
+                .andExpect(status().isCreated());
+
+        String key = jdbc.queryForObject("SELECT poster_key FROM performance WHERE venue_name = ?",
+                String.class, "포스터 저장 공연장");
+        assertThat(key).matches("posters/[0-9a-f-]{36}\\.png");
+
+        var upload = ArgumentCaptor.forClass(PutObjectRequest.class);
+        var body = ArgumentCaptor.forClass(RequestBody.class);
+        verify(s3Client).putObject(upload.capture(), body.capture());
+        assertThat(upload.getValue().bucket()).isEqualTo("test-posters");
+        assertThat(upload.getValue().key()).isEqualTo(key);
+        assertThat(upload.getValue().contentType()).isEqualTo("image/png");
+        try (var uploaded = body.getValue().contentStreamProvider().newStream()) {
+            assertThat(uploaded.readAllBytes()).isEqualTo(bytes);
+        }
+
+        mockMvc.perform(get(ENDPOINT).header("X-Member-Id", adminId).param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].posterUrl").value(url));
+
+        var read = ArgumentCaptor.forClass(GetObjectPresignRequest.class);
+        verify(s3Presigner).presignGetObject(read.capture());
+        assertThat(read.getValue().signatureDuration()).isEqualTo(Duration.ofMinutes(15));
+        assertThat(read.getValue().getObjectRequest().key()).isEqualTo(key);
+    }
+
+    @Test
+    void removesTheUploadedPosterWhenRegistrationRollsBack() throws Exception {
+        String venue = "포스터 롤백 공연장";
+        register(adminId, request(venue, """
+                {"startAt":"2026-12-13T19:30:00+09:00"}
+                """))
+                .andExpect(status().isCreated());
+
+        registerWithPoster(venue, new MockMultipartFile("poster", "poster.png", "image/png", png()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("SCHEDULE_CONFLICT"));
+
+        var upload = ArgumentCaptor.forClass(PutObjectRequest.class);
+        var deletion = ArgumentCaptor.forClass(DeleteObjectRequest.class);
+        verify(s3Client).putObject(upload.capture(), any(RequestBody.class));
+        verify(s3Client).deleteObject(deletion.capture());
+        assertThat(deletion.getValue().key()).isEqualTo(upload.getValue().key());
+        assertThat(deletion.getValue().bucket()).isEqualTo(upload.getValue().bucket());
+        assertThat(performanceCount(venue)).isEqualTo(1);
+    }
+
+    @Test
+    void doesNotRegisterThePerformanceWhenS3RejectsTheUpload() throws Exception {
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenThrow(S3Exception.builder().statusCode(403).build());
+
+        registerWithPoster("업로드 실패 공연장", new MockMultipartFile("poster", "poster.png", "image/png", png()))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.errorCode").value("POSTER_STORAGE_UNAVAILABLE"));
+
+        assertThat(performanceCount("업로드 실패 공연장")).isZero();
+    }
+
+    @Test
+    void rejectsPostersLargerThanFiveMegabytes() throws Exception {
+        byte[] oversized = new byte[5 * 1024 * 1024 + 1];
+        registerWithPoster("큰 포스터 공연장",
+                new MockMultipartFile("poster", "poster.png", "image/png", oversized))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.errorCode").value("POSTER_TOO_LARGE"));
+
+        assertThat(performanceCount("큰 포스터 공연장")).isZero();
+        verifyNoInteractions(s3Client);
+    }
+
+    private ResultActions registerWithPoster(String venue, MockMultipartFile poster) throws Exception {
+        return mockMvc.perform(multipart(ENDPOINT)
+                .file(performancePart(request(venue, """
+                        {"startAt":"2026-12-13T19:30:00+09:00"}
+                        """)))
+                .file(poster)
+                .header("X-Member-Id", adminId));
+    }
+
+    private byte[] png() throws IOException {
+        var bytes = new ByteArrayOutputStream();
+        ImageIO.write(new BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB), "png", bytes);
+        return bytes.toByteArray();
     }
 
     private ResultActions register(long memberId, String body) throws Exception {

@@ -5,6 +5,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -20,6 +21,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
         ErrorCode code = ErrorCode.INVALID_REQUEST;
+        return ResponseEntity.status(code.getStatus()).body(ErrorResponse.of(code));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleUploadLimit() {
+        ErrorCode code = ErrorCode.POSTER_TOO_LARGE;
         return ResponseEntity.status(code.getStatus()).body(ErrorResponse.of(code));
     }
 
