@@ -1,6 +1,6 @@
 package secondteam.iseonjwa.reservation.dto;
 
-import secondteam.iseonjwa.reservation.entity.ReservationStatus;
+import secondteam.iseonjwa.reservation.entity.PaymentStatus;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -9,12 +9,13 @@ public record MyReservationResponse(List<Item> items, int page, int size, long t
 
     public record Item(
             Long reservationId,
+            Long scheduleId,
             String performanceTitle,
             String venueName,
             OffsetDateTime startAt,
             List<SeatInfo> seats,
             int totalAmount,
-            ReservationStatus status,
+            PaymentStatus paymentStatus,
             OffsetDateTime reservedAt
     ) {
     }
