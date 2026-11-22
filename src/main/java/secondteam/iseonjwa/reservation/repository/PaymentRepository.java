@@ -4,8 +4,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import secondteam.iseonjwa.reservation.entity.Payment;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     List<Payment> findByReservationReservationIdIn(List<Long> reservationIds);
+
+    Optional<Payment> findByReservationReservationId(Long reservationId);
 }

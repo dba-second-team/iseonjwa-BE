@@ -45,6 +45,13 @@ public class Seat {
     @JoinColumn(name = "schedule_id", nullable = false, foreignKey = @ForeignKey(name = "R_18"))
     private Schedule schedule;
 
+    /** 좌석을 다시 예매 가능한 상태로 돌리고 선점 정보를 비운다. */
+    public void release() {
+        this.status = SeatStatus.AVAILABLE;
+        this.heldBy = null;
+        this.heldUntil = null;
+    }
+
     @Builder
     private Seat(SeatSection section, String rowNum, Integer seatNum, Schedule schedule) {
         this.section = section;
