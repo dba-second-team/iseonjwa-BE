@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -16,8 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 import secondteam.iseonjwa.global.common.ApiResponse;
 import secondteam.iseonjwa.global.error.ErrorCode;
 import secondteam.iseonjwa.global.error.ErrorResponse;
+import secondteam.iseonjwa.queue.dto.QueueStatusResponse;
 import secondteam.iseonjwa.queue.dto.WaitingQueueRegisterRequest;
 import secondteam.iseonjwa.queue.dto.WaitingQueueRegisterResponse;
+import secondteam.iseonjwa.queue.service.QueueStatusService;
 import secondteam.iseonjwa.queue.service.WaitingQueueService;
 
 @Tag(name = "대기열")
@@ -27,6 +30,7 @@ import secondteam.iseonjwa.queue.service.WaitingQueueService;
 public class QueueController {
 
     private final WaitingQueueService waitingQueueService;
+    private final QueueStatusService queueStatusService;
 
     @PostMapping("/waiting")
     @ResponseStatus(HttpStatus.CREATED)
@@ -34,6 +38,12 @@ public class QueueController {
             @RequestHeader("X-Member-Id") Long memberId,
             @RequestBody @Valid WaitingQueueRegisterRequest request) {
         return ApiResponse.ok(waitingQueueService.register(memberId, request));
+    }
+
+    @GetMapping("/status")
+    public ApiResponse<QueueStatusResponse> getQueueStatus(
+            @RequestHeader("X-Member-Id") Long memberId) {
+        return ApiResponse.ok(queueStatusService.getStatus(memberId));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

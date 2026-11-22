@@ -9,6 +9,7 @@ import secondteam.iseonjwa.global.error.ErrorCode;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -78,8 +79,68 @@ public class RedisQueueRepository implements QueueRepository {
             return {1, rank + 1}
             """;
 
+    /**
+     * 원자적 큐 상태 통합 조회 스크립트.
+     * <p>
+     * 1) 회원의 전역 상태 해시(queue:member:{memberId})가 없거나 ZSet 실제 상태와 불일치·만료된 경우
+     *    잔여 키를 정리하고 {0, 0, 0, 0} 반환.<br>
+     * 2) WAITING 상태면 해당 공연 active_queue의 만료 엔트리를 정리한 뒤
+     *    {1, performanceId, 1-based position, validActiveCount} 반환.<br>
+     * 3) ACTIVE 상태이고 만료 전(expiresAt > nowMillis)이면 {2, performanceId, 0, expiresAtMillis} 반환.
+     */
+    private static final String GET_QUEUE_STATUS_LUA = """
+            local memberKey = KEYS[1]
+
+            local memberId = ARGV[1]
+            local nowMillis = tonumber(ARGV[2])
+            local waitingPrefix = ARGV[3]
+            local activePrefix = ARGV[4]
+
+            local currentStatus = redis.call('HGET', memberKey, 'status')
+            local performanceId = redis.call('HGET', memberKey, 'performanceId')
+
+            if not currentStatus or not performanceId then
+                if currentStatus or performanceId then
+                    redis.call('DEL', memberKey)
+                end
+                return {0, 0, 0, 0}
+            end
+
+            if currentStatus == 'WAITING' then
+                local waitingKey = waitingPrefix .. performanceId
+                local rank = redis.call('ZRANK', waitingKey, memberId)
+                if rank == false then
+                    redis.call('DEL', memberKey)
+                    return {0, 0, 0, 0}
+                end
+
+                local activeKey = activePrefix .. performanceId
+                redis.call('ZREMRANGEBYSCORE', activeKey, '-inf', nowMillis)
+                local validActiveCount = redis.call('ZCARD', activeKey)
+                return {1, tonumber(performanceId), rank + 1, validActiveCount}
+            end
+
+            if currentStatus == 'ACTIVE' then
+                local activeKey = activePrefix .. performanceId
+                local expiresAt = redis.call('ZSCORE', activeKey, memberId)
+                if expiresAt == false or tonumber(expiresAt) <= nowMillis then
+                    redis.call('ZREM', activeKey, memberId)
+                    redis.call('DEL', memberKey)
+                    return {0, 0, 0, 0}
+                end
+
+                return {2, tonumber(performanceId), 0, math.floor(tonumber(expiresAt))}
+            end
+
+            redis.call('DEL', memberKey)
+            return {0, 0, 0, 0}
+            """;
+
     @SuppressWarnings("rawtypes")
-    private static final DefaultRedisScript<List> ENQUEUE_WAITING_SCRIPT = createEnqueueScript();
+    private static final DefaultRedisScript<List> ENQUEUE_WAITING_SCRIPT = createScript(ENQUEUE_WAITING_LUA);
+
+    @SuppressWarnings("rawtypes")
+    private static final DefaultRedisScript<List> GET_QUEUE_STATUS_SCRIPT = createScript(GET_QUEUE_STATUS_LUA);
 
     private final StringRedisTemplate stringRedisTemplate;
 
@@ -113,10 +174,46 @@ public class RedisQueueRepository implements QueueRepository {
         return ((Number) result.get(1)).longValue();
     }
 
+    @Override
+    public Optional<QueueEntrySnapshot> findMemberQueueState(long memberId, Instant now) {
+        List<String> keys = List.of(RedisQueueKeys.memberStateKey(memberId));
+
+        List<?> result = stringRedisTemplate.execute(
+                GET_QUEUE_STATUS_SCRIPT,
+                keys,
+                String.valueOf(memberId),
+                String.valueOf(now.toEpochMilli()),
+                RedisQueueKeys.WAITING_QUEUE_PREFIX,
+                RedisQueueKeys.ACTIVE_QUEUE_PREFIX
+        );
+
+        if (result == null || result.size() < 4) {
+            throw new IllegalStateException("큐 상태 조회 스크립트 실행 결과가 올바르지 않습니다.");
+        }
+
+        long stateCode = ((Number) result.get(0)).longValue();
+        if (stateCode == 0L) {
+            return Optional.empty();
+        }
+
+        long performanceId = ((Number) result.get(1)).longValue();
+        if (stateCode == 1L) {
+            long position = ((Number) result.get(2)).longValue();
+            long validActiveCount = ((Number) result.get(3)).longValue();
+            return Optional.of(QueueEntrySnapshot.waiting(performanceId, position, validActiveCount));
+        }
+        if (stateCode == 2L) {
+            long expiresAtMillis = ((Number) result.get(3)).longValue();
+            return Optional.of(QueueEntrySnapshot.active(performanceId, Instant.ofEpochMilli(expiresAtMillis)));
+        }
+
+        throw new IllegalStateException("알 수 없는 큐 상태 코드입니다: " + stateCode);
+    }
+
     @SuppressWarnings("rawtypes")
-    private static DefaultRedisScript<List> createEnqueueScript() {
+    private static DefaultRedisScript<List> createScript(String lua) {
         DefaultRedisScript<List> script = new DefaultRedisScript<>();
-        script.setScriptText(ENQUEUE_WAITING_LUA);
+        script.setScriptText(lua);
         script.setResultType(List.class);
         return script;
     }
