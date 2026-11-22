@@ -1,0 +1,96 @@
+package secondteam.iseonjwa.queue.repository;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
+import secondteam.iseonjwa.global.error.BusinessException;
+import secondteam.iseonjwa.global.error.ErrorCode;
+
+import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class RedisQueueRepositoryTest {
+
+    @Mock
+    private StringRedisTemplate stringRedisTemplate;
+
+    private RedisQueueRepository redisQueueRepository;
+
+    @BeforeEach
+    void setUp() {
+        redisQueueRepository = new RedisQueueRepository(stringRedisTemplate);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void returnsOneBasedPositionAndPassesExpectedRedisKeysAndArgs() {
+        Instant now = Instant.parse("2026-11-22T08:30:00Z");
+        when(stringRedisTemplate.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(List.of(1L, 15L));
+
+        long position = redisQueueRepository.enqueueWaiting(7L, 3L, now);
+
+        assertThat(position).isEqualTo(15L);
+
+        ArgumentCaptor<RedisScript<List>> scriptCaptor = ArgumentCaptor.forClass(RedisScript.class);
+        ArgumentCaptor<List<String>> keysCaptor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
+
+        verify(stringRedisTemplate).execute(scriptCaptor.capture(), keysCaptor.capture(), argsCaptor.capture());
+
+        assertThat(keysCaptor.getValue()).containsExactly(
+                "queue:member:7",
+                "queue:waiting:3",
+                "queue:waiting:seq:3"
+        );
+        assertThat(argsCaptor.getValue()).containsExactly(
+                "7",
+                "3",
+                String.valueOf(now.toEpochMilli()),
+                "queue:waiting:",
+                "queue:active:"
+        );
+        assertThat(scriptCaptor.getValue().getScriptAsString())
+                .contains("ZRANK")
+                .contains("ZADD")
+                .contains("HSET");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void throwsAlreadyInQueueWhenLuaReturnsZeroAdmittedFlag() {
+        Instant now = Instant.parse("2026-11-22T08:30:00Z");
+        when(stringRedisTemplate.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(List.of(0L, 0L));
+
+        assertThatThrownBy(() -> redisQueueRepository.enqueueWaiting(7L, 1L, now))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ALREADY_IN_QUEUE);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void throwsIllegalStateExceptionWhenScriptResultIsInvalid() {
+        Instant now = Instant.parse("2026-11-22T08:30:00Z");
+        when(stringRedisTemplate.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(Collections.emptyList());
+
+        assertThatThrownBy(() -> redisQueueRepository.enqueueWaiting(7L, 1L, now))
+                .isInstanceOf(IllegalStateException.class);
+    }
+}
