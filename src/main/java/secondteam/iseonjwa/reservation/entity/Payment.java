@@ -51,7 +51,7 @@ public class Payment {
         this.cancelFee = cancelFee;
         this.refundAmount = refundAmount;
         this.status = PaymentStatus.CANCELED;
-
+    }
   
     public void completeRefund(LocalDateTime refundedAt) {
         this.refundAmount = paidAmount - cancelFee;
