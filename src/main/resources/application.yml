@@ -6,6 +6,10 @@ springdoc:
 spring:
   application:
     name: iseonjwa
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   data:
     redis:
       host: ${REDIS_HOST:localhost}

@@ -23,6 +23,7 @@ public class PerformanceListService {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final PerformanceListRepository performanceListRepository;
+    private final PosterStorage posterStorage;
 
     public PerformanceListResponse list(int page, int size) {
         if (page < 0 || size < 1 || size > MAX_PAGE_SIZE || (long) page * size > Integer.MAX_VALUE) {
@@ -46,7 +47,7 @@ public class PerformanceListService {
                         performance.getPerformanceId(),
                         performance.getTitle(),
                         performance.getGenre(),
-                        null,
+                        posterStorage.readUrl(performance.getPosterKey()),
                         ticketCounts.getOrDefault(performance.getPerformanceId(), 0L)))
                 .toList();
 
