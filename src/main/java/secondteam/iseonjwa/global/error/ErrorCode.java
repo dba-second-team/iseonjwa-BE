@@ -31,6 +31,8 @@ public enum ErrorCode {
     HOLD_EXPIRED(HttpStatus.CONFLICT, "좌석 선점 시간이 만료되었거나 선점한 좌석이 아닙니다."),
     ALREADY_CANCELED(HttpStatus.CONFLICT, "이미 취소된 예매입니다."),
     CANCEL_NOT_ALLOWED(HttpStatus.CONFLICT, "공연 당일에는 예매를 취소할 수 없습니다."),
+    POSTER_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "포스터 파일은 5MB 이하로 등록해 주세요."),
+    POSTER_STORAGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "포스터 저장소를 사용할 수 없습니다."),
     REFUND_NOT_PENDING(HttpStatus.CONFLICT, "환불 대기 중인 예매만 처리할 수 있습니다."),
     INVALID_REFUND_AMOUNT(HttpStatus.CONFLICT, "저장된 취소 수수료로 환불 금액을 계산할 수 없습니다."),
     SCHEDULE_CONFLICT(HttpStatus.CONFLICT, "같은 공연장에 시간이 겹치는 회차가 있습니다."),
