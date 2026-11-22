@@ -16,14 +16,14 @@
 --   CANCELED  사용자가 취소해 환불 진행 중. 수수료와 환불 예정액이 기록되고 좌석은 바로 AVAILABLE
 --   REFUNDED  관리자가 환불 완료. refunded_at이 기록된다. 좌석은 취소할 때 이미 반환됐다
 --   예매(reservation)는 PAID면 CONFIRMED, 나머지는 CANCELED
--- 취소 수수료: 공연 날짜까지 남은 일수 7일 이상 0%, 3~6일 10%, 1~2일 30% (주최 측 공연 취소는 0%)
+-- 취소 수수료: 공연 날짜까지 남은 일수 7일 이상 0%, 3~6일 10%, 1~2일 30%
 --
 -- 이 파일이 만드는 것
---   1~5. 회원 606명, 공연 52개(상태별 4개 + 목록 스크롤용 48개), 가격, 회차, 좌석
+--   1~5. 회원 606명, 공연 51개(상태별 3개 + 목록 스크롤용 48개), 가격, 회차, 좌석
 --   6. 매진 공연: 1,050석 전부 예매
 --   7. 종료 공연: 60석 예매
---   8. 주최 측이 취소한 공연: 환불 진행 중 9건, 환불 완료 6건 (관리자 일괄 환불 테스트용)
---   9. demo.user 예매 내역 42건 (내 예매 내역 무한 스크롤용)
+--   8. demo.user 예매 내역 42건 (내 예매 내역 무한 스크롤용)
+--   9. 관리자 예매 조회용 예매 (인기 공연 1개는 상태마다 여러 페이지, 나머지는 공연마다 4~20건)
 --   10. 좌석 상태 맞추기
 --   11. 포스터 키 (이미지는 S3 버킷의 seed/ 아래, 원본은 scripts/seed-posters/)
 
@@ -68,7 +68,7 @@ SELECT member_id INTO @demo_user FROM member WHERE email = 'demo.user@example.co
 
 -- ============================================
 -- 2. PERFORMANCE
--- 기존 공연 2개는 ON_SALE이라 나머지 상태를 하나씩 추가하고,
+-- 기존 공연 2개는 ON_SALE이라 UPCOMING, SOLD_OUT, CLOSED를 하나씩 추가하고,
 -- 공연 목록과 관리자 공연 목록 스크롤용 공연 48개를 더한다
 -- ============================================
 
@@ -86,11 +86,6 @@ INSERT INTO performance
 (title, genre, running_time, description, status, venue_name, max_tickets_per_member)
 VALUES ('이선좌 가을 페스티벌', 'ETC', 180, '이미 끝난 공연', 'CLOSED', '이선좌 공연장 B', 4);
 SET @closed_id = LAST_INSERT_ID();
-
-INSERT INTO performance
-(title, genre, running_time, description, status, venue_name, max_tickets_per_member)
-VALUES ('이선좌 겨울 힙합 쇼', 'HIPHOP_RANDB', 100, '주최 측 사정으로 취소된 공연', 'CANCELED', '이선좌 공연장 C', 2);
-SET @canceled_id = LAST_INSERT_ID();
 
 -- 스크롤용 공연: 장르 4개를 번갈아 넣고, 상태는 ON_SALE 36개, UPCOMING 6개, CLOSED 6개
 
@@ -148,7 +143,7 @@ VALUES
 
 SELECT MIN(performance_id) INTO @scroll_first_id
 FROM performance
-WHERE performance_id > @canceled_id;
+WHERE performance_id > @closed_id;
 
 
 -- ============================================
@@ -168,7 +163,7 @@ CROSS JOIN (
     UNION ALL SELECT 'S2', 140000
     UNION ALL SELECT 'G', 110000
 ) AS s
-WHERE p.performance_id IN (@upcoming_id, @sold_out_id, @closed_id, @canceled_id);
+WHERE p.performance_id IN (@upcoming_id, @sold_out_id, @closed_id);
 
 -- 스크롤용 공연: 장르별로 가격대를 다르게 둔다
 INSERT INTO price (performance_id, section, price)
@@ -205,12 +200,10 @@ VALUES
     ('2027-03-06 18:00:00', @upcoming_id),
     ('2027-03-07 18:00:00', @upcoming_id),
     ('2027-01-30 18:00:00', @sold_out_id),
-    ('2026-10-18 17:00:00', @closed_id),
-    ('2027-03-20 19:00:00', @canceled_id);
+    ('2026-10-18 17:00:00', @closed_id);
 
 SELECT schedule_id INTO @sold_out_schedule_id FROM schedule WHERE performance_id = @sold_out_id;
 SELECT schedule_id INTO @closed_schedule_id FROM schedule WHERE performance_id = @closed_id;
-SELECT schedule_id INTO @canceled_schedule_id FROM schedule WHERE performance_id = @canceled_id;
 
 INSERT INTO schedule (start_at, performance_id)
 SELECT v.start_at, p.performance_id
@@ -324,7 +317,7 @@ WHERE NOT EXISTS (
 -- 예매 시각을 2시간 간격으로 흩어 관리자 통계에 쓰고, 예매와 좌석을 잇는 키로도 쓴다
 -- ============================================
 
-SET @sold_out_base = TIMESTAMP('2026-11-01 10:00:00');
+SET @sold_out_base = TIMESTAMP('2026-10-20 10:00:00');  -- 263건 x 2시간이라 마지막 예매는 11/11
 
 INSERT INTO reservation
 (status, reserved_at, canceled_at, member_id, schedule_id)
@@ -407,72 +400,11 @@ GROUP BY r.reservation_id, r.reserved_at;
 
 
 -- ============================================
--- 8. 주최 측이 취소한 공연: S1구역 앞 30석을 2석씩 묶어 15건
---   묶음 0: demo.user, 환불 완료
---   묶음 1~5: load001~load005, 환불 완료
---   묶음 6~14: load006~load014, 환불 진행 중 (관리자가 일괄 환불할 대상)
--- 공연 취소라 수수료는 0원, 예매는 모두 CANCELED
--- ============================================
-
-SET @canceled_base = TIMESTAMP('2026-11-02 20:00:00');
-SET @organizer_canceled_at = TIMESTAMP('2026-11-18 10:00:00');
-
-INSERT INTO reservation
-(status, reserved_at, canceled_at, member_id, schedule_id)
-SELECT
-    'CANCELED',
-    @canceled_base + INTERVAL g.grp * 9 HOUR,
-    @organizer_canceled_at,
-    COALESCE(IF(g.grp = 0, @demo_user, NULL), m.member_id),
-    @canceled_schedule_id
-FROM (
-    SELECT DISTINCT grp
-    FROM (
-        SELECT (ROW_NUMBER() OVER (ORDER BY CAST(row_num AS UNSIGNED), seat_num) - 1) DIV 2 AS grp
-        FROM seat
-        WHERE schedule_id = @canceled_schedule_id AND section = 'S1'
-    ) AS numbered
-    WHERE grp < 15
-) AS g
-LEFT JOIN member AS m
-    ON m.email = CONCAT('load', LPAD(g.grp, 3, '0'), '@example.com');
-
-INSERT INTO reservation_seat (reservation_id, seat_id)
-SELECT r.reservation_id, t.seat_id
-FROM (
-    SELECT seat_id, (ROW_NUMBER() OVER (ORDER BY CAST(row_num AS UNSIGNED), seat_num) - 1) DIV 2 AS grp
-    FROM seat
-    WHERE schedule_id = @canceled_schedule_id AND section = 'S1'
-) AS t
-JOIN reservation AS r
-    ON r.schedule_id = @canceled_schedule_id
-   AND r.reserved_at = @canceled_base + INTERVAL t.grp * 9 HOUR
-WHERE t.grp < 15;
-
-INSERT INTO payment
-(paid_amount, cancel_fee, refund_amount, status, paid_at, refunded_at, reservation_id)
-SELECT
-    SUM(pr.price),
-    0,
-    SUM(pr.price),
-    IF(r.reserved_at < @canceled_base + INTERVAL 6 * 9 HOUR, 'REFUNDED', 'CANCELED'),
-    r.reserved_at + INTERVAL 1 MINUTE,
-    IF(r.reserved_at < @canceled_base + INTERVAL 6 * 9 HOUR, @organizer_canceled_at + INTERVAL 1 DAY, NULL),
-    r.reservation_id
-FROM reservation AS r
-JOIN reservation_seat AS rs ON rs.reservation_id = r.reservation_id
-JOIN seat AS st ON st.seat_id = rs.seat_id
-JOIN price AS pr ON pr.performance_id = @canceled_id AND pr.section = st.section
-WHERE r.schedule_id = @canceled_schedule_id
-GROUP BY r.reservation_id, r.reserved_at;
-
-
--- ============================================
--- 9. demo.user 예매 내역 (내 예매 내역 무한 스크롤용)
+-- 8. demo.user 예매 내역 (내 예매 내역 무한 스크롤용)
 -- 스크롤용 공연 중 예매 오픈 전(UPCOMING)을 뺀 42개에 1건씩
 --   예매 중 공연: 확정, 환불 진행 중, 환불 완료 (공연까지 7일 넘게 남았을 때 취소해서 수수료 0%)
 --   종료 공연: 관람 완료, 공연 5일 전 취소(수수료 10%), 2일 전 취소(수수료 30%)
--- 6~8번, demo-reset.sql과 합치면 demo.user 예매는 49건(20 + 20 + 9, 3페이지)
+-- 6, 7번, demo-reset.sql과 합치면 demo.user 예매는 48건(20 + 20 + 8, 3페이지)
 -- 2026-11-15 12:00:00에 예매한 건이 두 개라 보조 정렬(reservation_id)도 확인할 수 있다
 -- 좌석은 공연마다 구역을 바꿔 1열 1번부터 1~2석이다
 -- 목록을 여러 번 쓰므로 작업용 테이블에 넣었다가 끝나면 지운다
@@ -600,6 +532,136 @@ DROP TABLE seed_demo_history;
 
 
 -- ============================================
+-- 9. 관리자 예매 조회용 예매
+-- 관리자 예매 목록(#30)은 공연별, 결제 상태별로 20건씩 보여 준다.
+-- 스크롤용 공연 중 예매 오픈 전(UPCOMING)을 뺀 공연의 회차마다 부하 테스트 회원(load001~)이 2석씩 예매한다.
+--   '언더그라운드 사이퍼'(인기 공연, 회차 2개): 회차마다 180건 → 확정 252, 환불 진행 중 72, 환불 완료 36
+--   나머지 공연: 회차마다 4~20건
+-- 순번 k로 결제 상태를 정한다: 10건 중 확정 7, 환불 진행 중 2, 환불 완료 1
+--   종료 공연은 환불 진행 중 대신 환불 완료로 넣는다 (이미 끝난 공연에 환불 대기가 남아 있지 않게)
+-- 예매 시각은 2026-11-20(종료 공연은 공연 3일 전)부터 7시간 간격으로 거슬러 올라간다.
+-- 취소는 예매 하루 뒤, 환불 완료는 취소 하루 뒤. 수수료는 #27 정책대로 계산한다.
+-- 좌석은 각 구역 2열부터 쓴다. 1열은 demo.user 예매(8번)가 쓴다.
+-- ============================================
+
+DROP TABLE IF EXISTS seed_bulk_plan;
+
+CREATE TABLE seed_bulk_plan (
+    schedule_id BIGINT NOT NULL,
+    k INT NOT NULL,
+    member_id BIGINT NOT NULL,
+    payment_status VARCHAR(20) NOT NULL,
+    reserved_at DATETIME NOT NULL,
+    canceled_at DATETIME NULL,
+    refunded_at DATETIME NULL,
+    PRIMARY KEY (schedule_id, k)
+);
+
+INSERT INTO seed_bulk_plan
+(schedule_id, k, member_id, payment_status, reserved_at, canceled_at, refunded_at)
+WITH RECURSIVE n AS (
+    SELECT 0 AS k
+    UNION ALL
+    SELECT k + 1 FROM n WHERE k < 179
+)
+SELECT
+    t.schedule_id,
+    n.k,
+    m.member_id,
+    t.payment_status,
+    t.reserved_at,
+    IF(t.payment_status = 'PAID', NULL, t.reserved_at + INTERVAL 1 DAY),
+    IF(t.payment_status = 'REFUNDED', t.reserved_at + INTERVAL 2 DAY, NULL)
+FROM n
+JOIN (
+    SELECT
+        s.schedule_id,
+        p.status AS performance_status,
+        CASE WHEN p.title = '언더그라운드 사이퍼' THEN 180 ELSE 4 + MOD(p.performance_id * 7, 17) END AS reservation_count,
+        LEAST(s.start_at - INTERVAL 3 DAY, TIMESTAMP('2026-11-20 00:00:00')) AS base_at
+    FROM schedule AS s
+    JOIN performance AS p ON p.performance_id = s.performance_id
+    WHERE p.performance_id >= @scroll_first_id
+      AND p.status IN ('ON_SALE', 'CLOSED')
+) AS sch ON n.k < sch.reservation_count
+CROSS JOIN LATERAL (
+    SELECT
+        sch.schedule_id,
+        CASE
+            WHEN MOD(n.k, 10) IN (3, 7) AND sch.performance_status = 'CLOSED' THEN 'REFUNDED'
+            WHEN MOD(n.k, 10) IN (3, 7) THEN 'CANCELED'
+            WHEN MOD(n.k, 10) = 5 THEN 'REFUNDED'
+            ELSE 'PAID'
+        END AS payment_status,
+        sch.base_at - INTERVAL n.k * 7 HOUR AS reserved_at
+) AS t
+JOIN member AS m ON m.email = CONCAT('load', LPAD(n.k + 1, 3, '0'), '@example.com');
+
+INSERT INTO reservation
+(status, reserved_at, canceled_at, member_id, schedule_id)
+SELECT IF(payment_status = 'PAID', 'CONFIRMED', 'CANCELED'), reserved_at, canceled_at, member_id, schedule_id
+FROM seed_bulk_plan
+ORDER BY schedule_id, k;
+
+-- 예매 k는 2열부터 센 좌석 순번 2k+1, 2k+2번 (구역 순서 F1~F4, S1, S2, G)
+INSERT INTO reservation_seat (reservation_id, seat_id)
+SELECT r.reservation_id, st.seat_id
+FROM seed_bulk_plan AS b
+JOIN reservation AS r
+    ON r.member_id = b.member_id
+   AND r.schedule_id = b.schedule_id
+   AND r.reserved_at = b.reserved_at
+JOIN (
+    SELECT seat_id, schedule_id,
+           ROW_NUMBER() OVER (PARTITION BY schedule_id
+                              ORDER BY FIELD(section, 'F1', 'F2', 'F3', 'F4', 'S1', 'S2', 'G'),
+                                       CAST(row_num AS UNSIGNED), seat_num) AS rn
+    FROM seat
+    WHERE row_num <> '1'
+      AND schedule_id IN (SELECT DISTINCT schedule_id FROM seed_bulk_plan)
+) AS st
+    ON st.schedule_id = b.schedule_id
+   AND st.rn IN (b.k * 2 + 1, b.k * 2 + 2);
+
+INSERT INTO payment
+(paid_amount, cancel_fee, refund_amount, status, paid_at, refunded_at, reservation_id)
+SELECT
+    t.paid_amount,
+    t.cancel_fee,
+    IF(t.payment_status = 'PAID', 0, t.paid_amount - t.cancel_fee),
+    t.payment_status,
+    t.reserved_at + INTERVAL 1 MINUTE,
+    t.refunded_at,
+    t.reservation_id
+FROM (
+    SELECT
+        r.reservation_id,
+        b.payment_status,
+        b.reserved_at,
+        b.refunded_at,
+        SUM(pr.price) AS paid_amount,
+        CASE
+            WHEN b.payment_status = 'PAID' THEN 0
+            WHEN DATEDIFF(DATE(s.start_at), DATE(b.canceled_at)) >= 7 THEN 0
+            WHEN DATEDIFF(DATE(s.start_at), DATE(b.canceled_at)) >= 3 THEN SUM(pr.price) * 10 DIV 100
+            ELSE SUM(pr.price) * 30 DIV 100
+        END AS cancel_fee
+    FROM seed_bulk_plan AS b
+    JOIN reservation AS r
+        ON r.member_id = b.member_id
+       AND r.schedule_id = b.schedule_id
+       AND r.reserved_at = b.reserved_at
+    JOIN schedule AS s ON s.schedule_id = r.schedule_id
+    JOIN reservation_seat AS rs ON rs.reservation_id = r.reservation_id
+    JOIN seat AS st ON st.seat_id = rs.seat_id
+    JOIN price AS pr ON pr.performance_id = s.performance_id AND pr.section = st.section
+    GROUP BY r.reservation_id, b.payment_status, b.reserved_at, b.refunded_at, b.canceled_at, s.start_at
+) AS t;
+
+DROP TABLE seed_bulk_plan;
+
+
+-- ============================================
 -- 10. 좌석 상태 맞추기
 -- 결제가 PAID(확정)인 예매의 좌석만 RESERVED. 취소된 예매의 좌석은 취소 시점에 반환됐다
 -- ============================================
@@ -620,7 +682,8 @@ WHERE seat_id IN (
 -- 이미지는 S3 버킷의 seed/ 아래에 수동으로 올려 두었다(seed/01.jpg ~ seed/54.jpg 중 52장).
 -- 원본 파일은 scripts/seed-posters/에 있다. 버킷을 새로 만들면 이 파일들을 seed/에 다시 올린다.
 -- 관리자가 등록하는 포스터는 posters/ 아래에 들어가므로(#36) 시드 이미지와 섞이지 않는다.
--- 기본 이미지 확인용으로 '이선좌 겨울 힙합 쇼', '코미디 뮤직 쇼'는 포스터를 비워 둔다.
+-- 기본 이미지 확인용으로 '코미디 뮤직 쇼'는 포스터를 비워 둔다.
+-- 파일 번호는 처음 만든 순서 그대로라 06번은 비어 있다(S3에 이미 올린 이름을 바꾸지 않으려고).
 -- 이미 포스터가 있는 공연(관리자가 등록한 것 등)은 건드리지 않는다.
 -- ============================================
 
