@@ -15,12 +15,11 @@ CI에서는 돌리지 않고, 필요할 때 노트북에서 직접 실행합니�
 | `sql/find-targets.sql` | k6에 넘길 회차 ID, 좌석 ID 조회 | |
 | `sql/verify.sql` | 테스트 후 DB 정합성 확인 | 1~3번 쿼리 결과가 0행 |
 
-데이터 준비는 `src/main/resources/db/migration/V6__add_demo_seed.sql`(기본 데이터와 목록 스크롤용 공연 48개)과
-`scripts/demo-reset.sql`(시연 상태로 되돌리기)이 맡습니다.
+데이터 준비는 `src/main/resources/db/migration/V6__add_demo_seed.sql`(기본 데이터)과
+`scripts/demo-reset.sql`(예매 중인 공연을 시연 상태로 되돌리기)이 맡습니다.
 
-> **선점 API가 아직 main에 없습니다.** `lib/common.js`의 `holdSeats()`는
-> `POST /api/schedules/{scheduleId}/seats/hold`, 본문 `{"seatIds": [...]}`, 헤더 `X-Member-Id`를 가정합니다.
-> API가 머지되면 이 함수만 실제 명세에 맞게 고치면 됩니다. `signup-race.js`는 지금 바로 돌릴 수 있습니다.
+선점 API는 #23(`POST /api/schedules/{scheduleId}/seats/hold`) 기준입니다.
+API 명세가 바뀌면 `lib/common.js`의 `holdSeats()`만 고치면 됩니다.
 
 ## 설치
 
@@ -41,7 +40,7 @@ mysql -h <DB 주소> -u <사용자> -p iseonjwa < scripts/demo-reset.sql
 ```
 
 마지막에 회차별 좌석 현황이 나오면 성공입니다. 대상 공연이나 회원을 못 찾으면
-`Subquery returns more than 1 row` 에러를 내고 아무것도 바꾸지 않은 채 멈춥니다. 이때는 V6가 적용됐는지 확인하세요.
+`Subquery returns more than 1 row` 에러를 내고 아무것도 바꾸지 않은 채 멈춥니다. 이때는 V6이 적용됐는지 확인하세요.
 
 ### 2. 대상 ID를 찾는다
 
@@ -61,13 +60,13 @@ mysql -h <DB 주소> -u <사용자> -p iseonjwa < k6/sql/find-targets.sql
 k6 run -e BASE=http://localhost:8080 k6/signup-race.js
 
 # A. 같은 좌석 경쟁
-k6 run -e BASE=... -e SCHEDULE_ID=2 -e SEAT_ID=892 k6/seat-hold-race.js
+k6 run -e BASE=... -e SCHEDULE_ID=2 -e SEAT_ID=3019 k6/seat-hold-race.js
 
 # B. 1인 매수 한도
-k6 run -e BASE=... -e SCHEDULE_ID=2 -e SEAT_IDS=666,680,710,740,770,800,830,860,888,916 k6/hold-limit.js
+k6 run -e BASE=... -e SCHEDULE_ID=2 -e SEAT_IDS=2123,2137,2152,2167,2182,2197,2212,2227,2242,2257 k6/hold-limit.js
 
 # C. 데드락
-k6 run -e BASE=... -e SCHEDULE_ID=2 -e SEAT_PAIR=892,864 k6/deadlock.js
+k6 run -e BASE=... -e SCHEDULE_ID=2 -e SEAT_PAIR=3019,3034 k6/deadlock.js
 ```
 
 시나리오마다 앞 시나리오가 잡아 둔 선점이 남아 있으니, **시나리오 사이에 1번(demo-reset.sql)을 다시 실행**하세요.
@@ -90,7 +89,8 @@ k6 run -e BASE=... -e SCHEDULE_ID=2 -e SEAT_PAIR=892,864 k6/deadlock.js
 mysql -h <DB 주소> -u <사용자> -p iseonjwa < k6/sql/verify.sql
 ```
 
-1~3번 쿼리가 0행이면 정상이고, 4번은 대상 회차에서 선점된 좌석 목록입니다(발표 캡처용).
+1~5번 쿼리가 0행이면 정상이고, 6번은 대상 회차에서 선점된 좌석 목록입니다(발표 캡처용).
+1번은 중복 예매, 2번은 좌석 상태와 예매, 3번은 선점 정보, 4번은 회차별 매수 한도, 5번은 결제 상태와 금액을 확인합니다.
 
 ### 5. 끝나면 다시 되돌린다
 
@@ -122,10 +122,31 @@ K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_PERIOD=1s K6_WEB_DASHBOARD_EXPORT=report-
 ## 데이터 메모
 
 - 테스트 계정 비밀번호는 전부 `Demo1234!`입니다.
-- k6는 `load001`~`load100`만 씁니다.
-  `load199`, `load200`은 시연용 선점 좌석에, `load002`~`load151`은 HIPHOP 매진 직전 회차 예매에 쓰입니다.
-- 시연 계정 `demo.user`는 예매 내역 49건(확정 40, 취소 9)을 갖습니다. 내 예매 내역을 20건씩 불러오면 3페이지입니다.
-- 팀원 수동 테스트 계정은 `team1@example.com`~`team5@example.com`입니다.
-- 1인 매수 한도는 `verify.sql`에서 **공연 단위**로 셉니다. 팀이 회차 단위로 정하면 3번 쿼리의 `GROUP BY`에 회차를 넣으세요.
-- 취소 예매의 수수료 10%는 시연용 가정값입니다. 취소 정책이 정해지면 `demo-reset.sql`을 맞춰 바꿉니다.
+- 결제 상태: `PAID` 확정, `CANCELED` 환불 진행 중, `REFUNDED` 환불 완료. 좌석은 취소할 때 바로 반환됩니다(DFD 10.0).
+  취소 수수료는 #27 정책(7일 이상 0%, 3~6일 10%, 1~2일 30%)대로 계산해 넣었습니다.
+- 좌석은 관리자 공연 등록(#25)과 같은 배치로 회차마다 1,050석(7구역 x 15열 x 10석)입니다.
+- 공연 54개 중 52개에 포스터 키(`seed/NN.jpg`)가 있습니다. 이미지는 S3 버킷의 `seed/` 아래에 올려 두었고,
+  원본은 `scripts/seed-posters/`에 있습니다. `이선좌 겨울 힙합 쇼`, `코미디 뮤직 쇼`는 기본 이미지 확인용으로 포스터가 없습니다.
+- 계정별 용도
+
+| 계정 | 용도 |
+|---|---|
+| `demo.user` | 예매 내역 49건(확정 31, 환불 진행 중 7, 환불 완료 11). 20건씩 3페이지 |
+| `demo.limit` | K-POP LIVE 1/16에 3석 확정. 1석은 더 잡히고 그다음은 `HOLD_LIMIT_EXCEEDED` |
+| `demo.admin` | 관리자 |
+| `team1`~`team5` | 팀원 수동 테스트. 예매 기록 없음 |
+| `load001`~`load100` | k6 전용 (K-POP LIVE 1/17 회차에 기록 없음) |
+| `load199`, `load200` | K-POP LIVE 1/16 선점 시연 좌석의 주인 |
+| `load301`~`load340` | K-POP LIVE 1/16 관리자용 예매 40건 |
+| `load001`~`load523` | HIPHOP 2/6 매진 직전 회차 예매 (k6와 회차가 달라 겹치지 않음) |
+
+- 관리자 테스트용 데이터
+
+| 공연 | 확정 | 환불 진행 중 | 환불 완료 |
+|---|---|---|---|
+| 이선좌 K-POP LIVE | 33 | 7 | 4 |
+| 이선좌 겨울 힙합 쇼 (주최 측 취소) | 0 | 9 | 6 |
+| 이선좌 K-POP 앵콜 (매진) | 263 | 0 | 0 |
+| 이선좌 HIPHOP & R&B NIGHT (매진 직전) | 524 | 0 | 0 |
+
 - 검증 환경: k6 v1.0.0, MySQL 8.0

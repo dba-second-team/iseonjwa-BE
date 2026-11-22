@@ -1,7 +1,7 @@
 // 시나리오 B: 회원 1명이 서로 다른 좌석 10개를 동시에 선점하면 한도(기본 4)만큼만 성공해야 한다.
 // 회원 행 잠금으로 매수를 세지 않으면 동시에 들어온 요청이 모두 한도 검사를 통과해 버린다.
 // 실행: k6 run -e BASE=... -e SCHEDULE_ID=... -e SEAT_IDS=1,2,...,10 k6/hold-limit.js
-// 주의: 대상 회원이 이 공연에 다른 선점이나 예매가 없어야 한다 (demo-reset.sql 실행 후 load001은 비어 있다).
+// 주의: 대상 회원이 이 회차에 다른 선점이나 확정 예매가 없어야 한다 (demo-reset.sql 실행 후 load001은 1/17 회차가 비어 있다).
 import { check } from 'k6';
 import { Counter } from 'k6/metrics';
 import {

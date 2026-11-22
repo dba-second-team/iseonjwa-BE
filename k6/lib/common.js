@@ -70,12 +70,13 @@ export function waitUntil(startAt) {
 }
 
 // ============================================
-// 좌석 선점 API 호출
-// 아직 main에 선점 API가 없어서 경로와 요청 형식은 가정이다.
-// API가 머지되면 이 함수만 실제 명세에 맞게 고치면 된다.
-//   가정: POST /api/schedules/{scheduleId}/seats/hold
-//         헤더 X-Member-Id, 본문 {"seatIds": [1, 2]}
-//         성공 200 또는 201, 실패 409 {"code": "SEAT_UNAVAILABLE" | "HOLD_LIMIT_EXCEEDED", ...}
+// 좌석 선점 API 호출 (#23 SeatController 기준)
+//   POST /api/schedules/{scheduleId}/seats/hold
+//   헤더 X-Member-Id, 본문 {"seatIds": [1, 2]}
+//   성공 200 {"data": {"seatIds": [...], "heldUntil": "..."}}
+//   실패 409 {"code": "SEAT_UNAVAILABLE" | "HOLD_LIMIT_EXCEEDED", ...}
+// 매수 한도는 회차 단위로 센다 (만료 전 선점 + 확정 예매 좌석)
+// API 명세가 바뀌면 이 함수만 고치면 된다.
 // ============================================
 export function holdSeats(memberId, scheduleId, seatIds) {
   return http.post(

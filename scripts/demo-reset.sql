@@ -9,11 +9,11 @@
 -- V6까지 적용된 DB에서만 실행한다. Flyway 마이그레이션이 아니라 직접 실행하는 스크립트다.
 --
 -- 결제 상태와 좌석은 V6과 같은 규칙을 따른다.
---   PAID 예매 확정(좌석 RESERVED), CANCELED 환불 진행 중(좌석 RESERVED), REFUNDED 환불 완료(좌석 AVAILABLE)
+--   PAID 예매 확정(좌석 RESERVED), CANCELED 환불 진행 중, REFUNDED 환불 완료 (취소된 예매의 좌석은 AVAILABLE)
 --
 -- 실행하면 생기는 상태
 --   [K-POP LIVE 2027-01-16]
---     demo.user   확정 2석(F1 1열 1, 2번), 환불 진행 중 1석(S1 2열 1번)
+--     demo.user   확정 2석(F1 1열 1, 2번), 환불 진행 중 1건(S1 2열 1번, 좌석은 빈 좌석)
 --     demo.limit  확정 3석(S1 1열 1~3번). 이 회차 한도 4매라 1석만 더 잡힌다
 --     load301~340 확정 30건, 환불 진행 중 6건, 환불 완료 4건 (관리자 예매 목록, 환불 처리용)
 --     G 1열 1~4번  다른 회원이 선점 중 (5분 뒤 만료)
@@ -233,7 +233,7 @@ FROM (
     GROUP BY r.reservation_id, p.payment_status, p.reserved_at, p.refunded_at, p.canceled_at, s.start_at
 ) AS t;
 
--- 확정(PAID)과 환불 진행 중(CANCELED) 예매의 좌석은 RESERVED
+-- 확정(PAID) 예매의 좌석만 RESERVED. 취소된 예매의 좌석은 취소 시점에 반환된다(DFD 10.0)
 UPDATE seat
 SET status = 'RESERVED'
 WHERE seat_id IN (
@@ -241,7 +241,7 @@ WHERE seat_id IN (
     FROM reservation_seat AS rs
     JOIN payment AS pay ON pay.reservation_id = rs.reservation_id
     JOIN reservation AS r ON r.reservation_id = rs.reservation_id
-    WHERE pay.status IN ('PAID', 'CANCELED')
+    WHERE pay.status = 'PAID'
       AND r.schedule_id IN (@kpop_main, @kpop_today, @hiphop_main)
 );
 

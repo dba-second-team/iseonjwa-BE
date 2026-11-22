@@ -29,7 +29,7 @@ export const options = {
 };
 
 export function setup() {
-  if (PAIR.length !== 2) throw new Error('SEAT_PAIR에는 좌석 ID 두 개를 넣어 주세요. 예: -e SEAT_PAIR=892,864');
+  if (PAIR.length !== 2) throw new Error('SEAT_PAIR에는 좌석 ID 두 개를 넣어 주세요. 예: -e SEAT_PAIR=3019,3034');
   return {
     scheduleId: requireEnv('SCHEDULE_ID'),
     memberIds: loginLoadMembers(VUS),

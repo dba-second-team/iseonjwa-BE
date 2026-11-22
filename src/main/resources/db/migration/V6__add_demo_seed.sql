@@ -11,10 +11,10 @@
 -- 좌석 배치: 관리자 공연 등록(ScheduleSeatRepository)과 같게 회차마다
 --   7구역(F1~F4, S1, S2, G) x 15열 x 10석 = 1,050석
 --
--- 결제 상태와 좌석 (#27 예매 취소, #32 관리자 환불 기준)
+-- 결제 상태와 좌석 (DFD 10.0 예매 취소, 11.0 환불 처리 기준)
 --   PAID      예매 확정. 좌석 RESERVED
---   CANCELED  사용자가 취소해 환불 진행 중. 수수료와 환불 예정액이 기록되고 좌석은 RESERVED로 남는다
---   REFUNDED  관리자가 환불 완료. refunded_at이 기록되고 좌석은 AVAILABLE
+--   CANCELED  사용자가 취소해 환불 진행 중. 수수료와 환불 예정액이 기록되고 좌석은 바로 AVAILABLE
+--   REFUNDED  관리자가 환불 완료. refunded_at이 기록된다. 좌석은 취소할 때 이미 반환됐다
 --   예매(reservation)는 PAID면 CONFIRMED, 나머지는 CANCELED
 -- 취소 수수료: 공연 날짜까지 남은 일수 7일 이상 0%, 3~6일 10%, 1~2일 30% (주최 측 공연 취소는 0%)
 --
@@ -25,7 +25,7 @@
 --   8. 주최 측이 취소한 공연: 환불 진행 중 9건, 환불 완료 6건 (관리자 일괄 환불 테스트용)
 --   9. demo.user 예매 내역 42건 (내 예매 내역 무한 스크롤용)
 --   10. 좌석 상태 맞추기
---   11. 포스터 키 (이미지는 scripts/seed-posters/, 업로드는 scripts/upload-seed-posters.sh)
+--   11. 포스터 키 (이미지는 S3 버킷의 seed/ 아래, 원본은 scripts/seed-posters/)
 
 
 -- ============================================
@@ -601,7 +601,7 @@ DROP TABLE seed_demo_history;
 
 -- ============================================
 -- 10. 좌석 상태 맞추기
--- 결제가 PAID 또는 CANCELED(환불 진행 중)인 예매의 좌석은 RESERVED
+-- 결제가 PAID(확정)인 예매의 좌석만 RESERVED. 취소된 예매의 좌석은 취소 시점에 반환됐다
 -- ============================================
 
 UPDATE seat
@@ -610,15 +610,15 @@ WHERE seat_id IN (
     SELECT rs.seat_id
     FROM reservation_seat AS rs
     JOIN payment AS pay ON pay.reservation_id = rs.reservation_id
-    WHERE pay.status IN ('PAID', 'CANCELED')
+    WHERE pay.status = 'PAID'
 );
 
 
 -- ============================================
 -- 11. 포스터
 -- poster_key는 URL이 아니라 S3 객체 키다. 앱(#36 PosterStorage)이 이 키로 서명 URL을 만든다.
--- 이미지 파일은 scripts/seed-posters/에 있고, 버킷의 seed/ 아래에 같은 파일 이름으로 올린다
--- (S3 콘솔에서 직접 올리거나 scripts/upload-seed-posters.sh). 올리지 않으면 키는 있어도 이미지가 깨진다.
+-- 이미지는 S3 버킷의 seed/ 아래에 수동으로 올려 두었다(seed/01.jpg ~ seed/54.jpg 중 52장).
+-- 원본 파일은 scripts/seed-posters/에 있다. 버킷을 새로 만들면 이 파일들을 seed/에 다시 올린다.
 -- 관리자가 등록하는 포스터는 posters/ 아래에 들어가므로(#36) 시드 이미지와 섞이지 않는다.
 -- 기본 이미지 확인용으로 '이선좌 겨울 힙합 쇼', '코미디 뮤직 쇼'는 포스터를 비워 둔다.
 -- 이미 포스터가 있는 공연(관리자가 등록한 것 등)은 건드리지 않는다.
