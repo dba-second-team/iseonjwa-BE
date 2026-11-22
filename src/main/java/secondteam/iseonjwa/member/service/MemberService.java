@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import secondteam.iseonjwa.global.error.BusinessException;
 import secondteam.iseonjwa.global.error.ErrorCode;
+import secondteam.iseonjwa.member.dto.EmailCheckResponse;
 import secondteam.iseonjwa.member.dto.LogInRequest;
 import secondteam.iseonjwa.member.dto.LogInResponse;
 import secondteam.iseonjwa.member.dto.SignUpRequest;
@@ -37,7 +38,10 @@ public class MemberService {
             Member saved = memberRepository.saveAndFlush(member);
             return SignUpResponse.from(saved);
         } catch (DataIntegrityViolationException e) {
-            throw new BusinessException(ErrorCode.EMAIL_DUPLICATED);
+            if (isEmailDuplicate(e)) {
+                throw new BusinessException(ErrorCode.EMAIL_DUPLICATED);
+            }
+            throw e;
         }
     }
 
@@ -54,6 +58,10 @@ public class MemberService {
         return LogInResponse.from(member);
     }
 
+    public EmailCheckResponse checkEmail(String email) {
+        return new EmailCheckResponse(!memberRepository.existsByEmail(email));
+    }
+
     private Member authenticate(LogInRequest request) {
         Member member = memberRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
@@ -63,5 +71,10 @@ public class MemberService {
         }
 
         return member;
+    }
+
+    private boolean isEmailDuplicate(DataIntegrityViolationException e) {
+        String message = e.getMostSpecificCause().getMessage();
+        return message != null && message.toUpperCase().contains("AK_MEMBER_EMAIL");
     }
 }

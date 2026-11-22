@@ -24,9 +24,4 @@ public class AdminController {
     public ApiResponse<LogInResponse> logIn(@RequestBody @Valid LogInRequest request) {
         return ApiResponse.ok(memberService.adminLogin(request));
     }
-
-    @GetMapping("/abc")
-    public ApiResponse<String> hey() {
-        return ApiResponse.ok("Hello");
-    }
 }
