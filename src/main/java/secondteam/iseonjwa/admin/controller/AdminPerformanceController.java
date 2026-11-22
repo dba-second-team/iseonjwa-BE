@@ -19,7 +19,6 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 import secondteam.iseonjwa.admin.dto.PerformanceCreateRequest;
 import secondteam.iseonjwa.admin.dto.PerformanceCreateResponse;
 import secondteam.iseonjwa.global.common.ApiResponse;
-import secondteam.iseonjwa.global.error.BusinessException;
 import secondteam.iseonjwa.global.error.ErrorCode;
 import secondteam.iseonjwa.global.error.ErrorResponse;
 import secondteam.iseonjwa.performance.service.PerformanceRegistrationService;
@@ -38,11 +37,7 @@ public class AdminPerformanceController {
             @Valid @RequestPart("performance") PerformanceCreateRequest request,
             @RequestPart(value = "poster", required = false) MultipartFile poster
     ) {
-        if (poster != null && !poster.isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST);
-        }
-
-        return ApiResponse.ok(performanceRegistrationService.register(adminId, request));
+        return ApiResponse.ok(performanceRegistrationService.register(adminId, request, poster));
     }
 
     @ExceptionHandler({MissingServletRequestPartException.class, HttpMessageNotReadableException.class})

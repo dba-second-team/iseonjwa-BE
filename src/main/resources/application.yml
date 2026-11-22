@@ -6,6 +6,10 @@ springdoc:
 spring:
   application:
     name: iseonjwa
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/iseonjwa}
     username: ${DB_USERNAME:root}

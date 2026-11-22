@@ -16,7 +16,12 @@ import secondteam.iseonjwa.reservation.dto.CreateReservationRequest;
 import secondteam.iseonjwa.reservation.dto.CreateReservationResponse;
 import secondteam.iseonjwa.reservation.dto.MyReservationResponse;
 import secondteam.iseonjwa.reservation.service.ReservationConfirmService;
+import secondteam.iseonjwa.reservation.dto.CancelReservationResponse;
+import secondteam.iseonjwa.reservation.dto.MyReservationResponse;
+import secondteam.iseonjwa.reservation.service.ReservationCancelService;
 import secondteam.iseonjwa.reservation.service.ReservationQueryService;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 
 @Tag(name = "예매")
 @RestController
@@ -25,6 +30,7 @@ public class ReservationController {
 
     private final ReservationConfirmService reservationConfirmService;
     private final ReservationQueryService reservationQueryService;
+    private final ReservationCancelService reservationCancelService;
 
     @PostMapping("/api/reservations")
     @ResponseStatus(HttpStatus.CREATED)
@@ -40,5 +46,12 @@ public class ReservationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ApiResponse.ok(reservationQueryService.getMyReservations(memberId, page, size));
+    }
+
+    @PostMapping("/api/reservations/{reservationId}/cancel")
+    public ApiResponse<CancelReservationResponse> cancelReservation(
+            @RequestHeader("X-Member-Id") Long memberId,
+            @PathVariable Long reservationId) {
+        return ApiResponse.ok(reservationCancelService.cancel(memberId, reservationId));
     }
 }
