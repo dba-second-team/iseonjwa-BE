@@ -98,16 +98,23 @@ public class ReservationConfirmService {
                 .collect(Collectors.toMap(Price::getSection, Price::getPrice));
 
         List<CreateReservationResponse.SeatPriceInfo> seatPriceInfos = new ArrayList<>(seats.size());
-        int totalAmount = 0;
+        long accumulatedAmount = 0L;
         for (Seat seat : seats) {
             Integer price = priceBySection.get(seat.getSection());
             if (price == null) {
                 throw new BusinessException(ErrorCode.PRICE_NOT_SET);
             }
+            if (price < 0) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST);
+            }
             seatPriceInfos.add(new CreateReservationResponse.SeatPriceInfo(
                     seat.getSeatId(), seat.getSection().name(), price));
-            totalAmount += price;
+            accumulatedAmount += price;
         }
+        if (accumulatedAmount > Integer.MAX_VALUE) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        int totalAmount = (int) accumulatedAmount;
 
         // 4. [8.3 예매 정보 저장] 예매(CONFIRMED) 1행과 예매좌석 n행을 INSERT한다.
         Reservation reservation = reservationRepository.save(Reservation.builder()

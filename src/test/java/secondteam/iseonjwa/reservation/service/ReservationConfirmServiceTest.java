@@ -324,4 +324,37 @@ class ReservationConfirmServiceTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("SCHEDULE_NOT_FOUND"));
     }
+
+    @Test
+    void 총_결제_금액이_int_범위를_초과하면_INVALID_REQUEST로_롤백된다() throws Exception {
+        Long[] expensiveSeatIds = transactionTemplate.execute(status -> {
+            Performance expensivePerf = scheduleRepository.findByIdWithPerformance(schedule.getScheduleId())
+                    .orElseThrow()
+                    .getPerformance();
+            priceRepository.save(Price.builder()
+                    .performance(expensivePerf)
+                    .section(SeatSection.F2)
+                    .price(1_500_000_000)
+                    .build());
+
+            LocalDateTime validUntil = LocalDateTime.now(ZONE).plusMinutes(5);
+            Seat s1 = Seat.builder().schedule(schedule).section(SeatSection.F2).rowNum("1").seatNum(1).build();
+            s1.hold(member, validUntil);
+            Seat s2 = Seat.builder().schedule(schedule).section(SeatSection.F2).rowNum("1").seatNum(2).build();
+            s2.hold(member, validUntil);
+            return new Long[]{seatRepository.save(s1).getSeatId(), seatRepository.save(s2).getSeatId()};
+        });
+
+        mockMvc.perform(post("/api/reservations")
+                        .header("X-Member-Id", member.getMemberId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"scheduleId": %d, "seatIds": [%d, %d], "paymentMethod": "CARD"}
+                                """.formatted(schedule.getScheduleId(), expensiveSeatIds[0], expensiveSeatIds[1])))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_REQUEST"));
+
+        assertThat(reservationRepository.count()).isZero();
+        assertThat(paymentRepository.count()).isZero();
+    }
 }
