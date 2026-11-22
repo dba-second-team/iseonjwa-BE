@@ -185,11 +185,25 @@ class RedisQueueRepositoryTest {
                 "queue:active:"
         );
         assertThat(scriptCaptor.getValue().getScriptAsString())
+                .contains("TIME")
                 .contains("ZREMRANGEBYSCORE")
                 .contains("ZRANK")
                 .contains("ZREM")
                 .contains("ZADD")
                 .contains("admittedAt");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void throwsCannotEnterActiveQueueWhenTargetExpiryAlreadyPassedAtRedisExecutionTime() {
+        Instant now = Instant.parse("2026-11-22T09:31:00Z");
+        when(stringRedisTemplate.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(List.of(-2L, 0L, 0L));
+
+        assertThatThrownBy(() -> redisQueueRepository.enterActiveQueue(9L, 2L, now, now.plusSeconds(1), 4L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CANNOT_ENTER_ACTIVE_QUEUE);
     }
 
     @Test

@@ -447,7 +447,7 @@ class WaitingQueueControllerTest {
                 Instant now,
                 Instant expiresAt,
                 long maxActiveSize) {
-            long nowMillis = now.toEpochMilli();
+            long nowMillis = Math.max(now.toEpochMilli(), Instant.now().toEpochMilli());
             long expiresAtMillis = expiresAt.toEpochMilli();
 
             Map<Long, Long> active = activeQueues.computeIfAbsent(performanceId, id -> new HashMap<>());
@@ -465,7 +465,7 @@ class WaitingQueueControllerTest {
                     throw new BusinessException(ErrorCode.QUEUE_ENTRY_NOT_FOUND);
                 }
                 if (existing.performanceId() == performanceId) {
-                    long admittedMillis = existing.admittedAtMillis() > 0L ? existing.admittedAtMillis() : nowMillis;
+                    long admittedMillis = existing.admittedAtMillis() > 0L ? existing.admittedAtMillis() : now.toEpochMilli();
                     return new ActiveQueueAdmission(
                             Instant.ofEpochMilli(admittedMillis),
                             Instant.ofEpochMilli(existingExp)
@@ -484,6 +484,10 @@ class WaitingQueueControllerTest {
                 throw new BusinessException(ErrorCode.QUEUE_ENTRY_NOT_FOUND);
             }
 
+            if (expiresAtMillis <= nowMillis) {
+                throw new BusinessException(ErrorCode.CANNOT_ENTER_ACTIVE_QUEUE);
+            }
+
             long position = 1L;
             for (Long id : waiting) {
                 if (id.equals(memberId)) {
@@ -499,7 +503,7 @@ class WaitingQueueControllerTest {
 
             waiting.remove(memberId);
             active.put(memberId, expiresAtMillis);
-            memberStates.put(memberId, new MemberState(performanceId, QueueStatus.ACTIVE, nowMillis, expiresAtMillis));
+            memberStates.put(memberId, new MemberState(performanceId, QueueStatus.ACTIVE, now.toEpochMilli(), expiresAtMillis));
             return new ActiveQueueAdmission(now, expiresAt);
         }
 
