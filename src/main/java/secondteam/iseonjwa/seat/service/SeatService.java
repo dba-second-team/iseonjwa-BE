@@ -40,9 +40,9 @@ public class SeatService {
         }
 
         // 같은 회원의 매수 한도 확인을 직렬화하고, 대기 후 최신 커밋을 집계한다.
-        Member member = memberRepository.findByIdForUpdate(memberId)
+        Member member = memberRepository.findByMemberId(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
-        Schedule schedule = scheduleRepository.findById(scheduleId)
+        Schedule schedule = scheduleRepository.findByIdWithPerformance(scheduleId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
         int limit = schedule.getPerformance().getMaxTicketsPerMember();
         if (seatIds.size() > limit) {

@@ -4,7 +4,7 @@ package secondteam.iseonjwa.performance.entity;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import secondteam.iseonjwa.seat.entity.SeatRank;
+import secondteam.iseonjwa.seat.entity.SeatSection;
 
 import java.io.Serializable;
 
@@ -14,5 +14,5 @@ import java.io.Serializable;
 public class PriceId implements Serializable {
 
     private Long performanceId;
-    private SeatRank seatRank;
+    private SeatSection section;
 }
