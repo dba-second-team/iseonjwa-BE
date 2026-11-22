@@ -37,6 +37,12 @@ public class Reservation {
     @JoinColumn(name = "schedule_id", nullable = false, foreignKey = @ForeignKey(name = "R_13"))
     private Schedule schedule;
 
+    /** 예매를 취소 상태로 바꾸고 취소 시각을 기록한다. */
+    public void cancel(LocalDateTime canceledAt) {
+        this.status = ReservationStatus.CANCELED;
+        this.canceledAt = canceledAt;
+    }
+
     @Builder
     private Reservation(Member member, Schedule schedule) {
         this.member = member;
