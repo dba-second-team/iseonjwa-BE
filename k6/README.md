@@ -1,6 +1,6 @@
 # k6 동시성 테스트
 
-좌석 선점이 동시에 몰려도 중복 선점, 한도 초과, 데드락이 생기지 않는지 확인하는 스크립트입니다.
+대기열, 좌석 선점, 결제, 취소에 요청이 동시에 몰려도 정원 초과, 중복 선점, 한도 초과, 데드락, 중복 결제, 중복 취소가 생기지 않는지 확인하는 스크립트입니다.
 CI에서는 돌리지 않고, 필요할 때 노트북에서 직접 실행합니다.
 
 ## 파일 구성
@@ -11,15 +11,20 @@ CI에서는 돌리지 않고, 필요할 때 노트북에서 직접 실행합니�
 | `seat-hold-race.js` | (A) 회원 100명이 같은 좌석 1개를 동시에 선점 | 성공 1건, 나머지 409 `SEAT_UNAVAILABLE` |
 | `hold-limit.js` | (B) 회원 1명이 서로 다른 좌석 10개를 동시에 선점 | 한도(4)만큼 성공, 나머지 409 `HOLD_LIMIT_EXCEEDED` |
 | `deadlock.js` | (C) 좌석 두 개를 [A, B], [B, A] 순서로 섞어 동시에 선점 | 성공 1건, 500 0건 |
-| `lib/common.js` | 로그인, 선점 API 호출 같은 공통 함수 | |
+| `queue-flow.js` | (D) 회원 100명이 대기열 등록 → 동시 입장 → 입장한 사람끼리 같은 좌석 선점 → 결제 → 빈자리에 다음 대기자 입장 | 100명 등록, 4명만 입장(순번 1~4), 선점 1건, 결제 1건, 재입장 1명 |
+| `pay-race.js` | (E) 같은 회원이 같은 좌석 결제를 10번 동시에 요청 (결제 버튼 연타) | 예매 1건, 나머지 409 `HOLD_EXPIRED` |
+| `cancel-race.js` | (F) 같은 예매에 취소 요청 10건 동시 | 취소 1건, 나머지 409 `ALREADY_CANCELED` |
+| `lib/common.js` | 로그인, 대기열, 선점, 결제, 취소 API 호출 같은 공통 함수 | |
 | `sql/find-targets.sql` | k6에 넘길 회차 ID, 좌석 ID 조회 | |
 | `sql/verify.sql` | 테스트 후 DB 정합성 확인 | 1~3번 쿼리 결과가 0행 |
 
 데이터 준비는 `src/main/resources/db/migration/V6__add_demo_seed.sql`(기본 데이터)과
 `scripts/demo-reset.sql`(예매 중인 공연을 시연 상태로 되돌리기)이 맡습니다.
 
-선점 API는 #23(`POST /api/schedules/{scheduleId}/seats/hold`) 기준입니다.
-API 명세가 바뀌면 `lib/common.js`의 `holdSeats()`만 고치면 됩니다.
+API 명세가 바뀌면 `lib/common.js`의 해당 함수(`holdSeats()`, `registerWaiting()`, `confirmReservation()` 등)만 고치면 됩니다.
+
+A, B, C는 선점 API를 바로 호출합니다. 서버의 선점 API는 작업열 입장 여부를 확인하지 않으므로, 대기열 없이도 DB 락만으로 정확성이 지켜지는지 보는 테스트입니다.
+D는 화면과 같은 순서(대기열 → 입장 → 선점 → 결제)로 호출해 대기열과 락이 함께 동작하는지 봅니다.
 
 ## 설치
 
@@ -48,7 +53,7 @@ mysql -h <DB 주소> -u <사용자> -p iseonjwa < scripts/demo-reset.sql
 mysql -h <DB 주소> -u <사용자> -p iseonjwa < k6/sql/find-targets.sql
 ```
 
-`SCHEDULE_ID`, `SEAT_ID`, `SEAT_PAIR`, `SEAT_IDS`가 나옵니다. **DB마다 ID가 다르니 매번 조회한 값을 쓰세요.**
+`PERFORMANCE_ID`, `SCHEDULE_ID`, `SEAT_ID`, `SEAT_PAIR`, `SEAT_IDS`, `FLOW_SEAT_ID`, `PAY_SEAT_IDS`, `CANCEL_SEAT_IDS`가 나옵니다. **DB마다 ID가 다르니 매번 조회한 값을 쓰세요.**
 대상은 K-POP LIVE 2027-01-17 회차이고, 테스트 전용이라 시연 화면에 쓰지 않습니다.
 
 ### 3. k6를 실행한다
@@ -67,9 +72,34 @@ k6 run -e BASE=... -e SCHEDULE_ID=2 -e SEAT_IDS=2123,2137,2152,2167,2182,2197,22
 
 # C. 데드락
 k6 run -e BASE=... -e SCHEDULE_ID=2 -e SEAT_PAIR=3019,3034 k6/deadlock.js
+
+# D. 대기열부터 결제까지
+k6 run -e BASE=... -e PERFORMANCE_ID=1 -e SCHEDULE_ID=2 -e FLOW_SEAT_ID=3018 k6/queue-flow.js
+
+# E. 결제 중복 요청
+k6 run -e BASE=... -e SCHEDULE_ID=2 -e PAY_SEAT_IDS=2122,2136 k6/pay-race.js
+
+# F. 취소 중복 요청
+k6 run -e BASE=... -e SCHEDULE_ID=2 -e CANCEL_SEAT_IDS=2121,7 k6/cancel-race.js
 ```
 
-시나리오마다 앞 시나리오가 잡아 둔 선점이 남아 있으니, **시나리오 사이에 1번(demo-reset.sql)을 다시 실행**하세요.
+`export SCHEDULE_ID=2`처럼 환경 변수로 먼저 넣어 두면 `-e`를 빼고 `k6 run k6/deadlock.js`만 쳐도 됩니다.
+`-e SCHEDULE_ID`처럼 값 없이 이름만 쓰면 빈 값으로 덮어쓰니 주의하세요.
+
+시나리오마다 앞 시나리오가 잡아 둔 선점이나 만든 예매가 남아 있으니, **시나리오 사이에 1번(demo-reset.sql)을 다시 실행**하세요.
+
+D는 대기열(Redis)을 씁니다. 다른 사람이 같은 공연 대기열에 들어와 있으면 정원 계산이 어긋나니, 아무도 예매 화면을 쓰지 않을 때 실행하세요.
+테스트에 쓴 회원(load201~load300)은 끝날 때 대기열에서 자동으로 뺍니다.
+서버의 작업열 정원(`queue.active.max-size`)을 바꿨다면 `-e MAX_ACTIVE=정원`을 같이 넘기세요.
+
+| 시나리오 | 쓰는 회원 | 쓰는 좌석 (K-POP LIVE 1/17) |
+|---|---|---|
+| A | load001~load100 | F1 1열 1번 |
+| B | load001 | G 1열 1~10번 |
+| C | load001~load020 | F1 1열 1, 2번 |
+| D | load201~load300 | F1 2열 1번 |
+| E | load101 | G 2열 1, 2번 |
+| F | load102 | G 3열 1, 2번 |
 
 ### 4. 결과를 확인한다
 
@@ -78,8 +108,9 @@ k6 run -e BASE=... -e SCHEDULE_ID=2 -e SEAT_PAIR=3019,3034 k6/deadlock.js
 
 | 항목 | 의미 |
 |---|---|
-| `hold_success` / `signup_created` | 성공한 요청 수. 시나리오별 합격 기준과 같아야 함 |
-| `http_req_failed{name:hold}` | 200, 201, 409를 뺀 응답 비율. 500(데드락, 락 대기 초과)이 있으면 0%가 아님 |
+| `hold_success`, `pay_success`, `cancel_success`, `first_admitted`, `late_admitted` | 성공한 요청 수. 시나리오별 합격 기준과 같아야 함 |
+| `admitted_out_of_turn` | (D) 대기 순번이 정원 밖인데 입장한 수. 0이어야 함 |
+| `http_req_failed{name:...}` | 200, 201, 409를 뺀 응답 비율. 500(데드락, 락 대기 초과)이 있으면 0%가 아님 |
 | `checks` | 409일 때 에러 코드까지 맞았는지 |
 | `http_req_duration{name:hold}` | 선점 요청 응답 시간. 발표 때 p(95) 값을 씁니다 |
 

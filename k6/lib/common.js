@@ -89,3 +89,63 @@ export function holdSeats(memberId, scheduleId, seatIds) {
     },
   );
 }
+
+export function memberHeaders(memberId) {
+  return Object.assign({ 'X-Member-Id': String(memberId) }, JSON_HEADERS);
+}
+
+// 테스트용 회원을 번호 범위로 로그인한다. 예: loginLoadRange(201, 100) → load201 ~ load300
+export function loginLoadRange(from, count) {
+  const emails = [];
+  for (let i = from; i < from + count; i++) emails.push(loadEmail(i));
+  return loginAll(emails);
+}
+
+// ============================================
+// 대기열 API (#QueueController 기준)
+//   POST /api/queue/waiting   {"performanceId"} → 201 {"data": {"position": n}}
+//   POST /api/queue/active    {"performanceId"} → 200, 정원이 찼거나 순번이 아니면 409 CANNOT_ENTER_ACTIVE_QUEUE
+//   DELETE /api/queue          → 200, 대기열에 없으면 404
+// ============================================
+export function registerWaiting(memberId, performanceId) {
+  return http.post(`${BASE}/api/queue/waiting`, JSON.stringify({ performanceId }),
+    { headers: memberHeaders(memberId), tags: { name: 'waiting' } });
+}
+
+export function enterActive(memberId, performanceId, tagName = 'active') {
+  return http.post(`${BASE}/api/queue/active`, JSON.stringify({ performanceId }),
+    { headers: memberHeaders(memberId), tags: { name: tagName } });
+}
+
+// 여러 회원을 한 번에 대기열에서 뺀다 (이전 실행의 흔적 정리용)
+export function leaveQueueAll(memberIds) {
+  http.batch(memberIds.map((id) => [
+    'DELETE', `${BASE}/api/queue`, null,
+    { headers: memberHeaders(id), tags: { name: 'leave' }, responseCallback: http.expectedStatuses(200, 404) },
+  ]));
+}
+
+// ============================================
+// 예매 API (#ReservationController 기준)
+//   POST /api/reservations  {"scheduleId", "seatIds", "paymentMethod"} → 201 {"data": {"reservationId"}}
+//     본인 선점이 아니거나 만료면 409 HOLD_EXPIRED
+//   POST /api/reservations/{id}/cancel → 200, 이미 취소면 409 ALREADY_CANCELED
+// ============================================
+export function confirmReservation(memberId, scheduleId, seatIds, paymentMethod = 'CARD') {
+  return http.post(`${BASE}/api/reservations`,
+    JSON.stringify({ scheduleId: Number(scheduleId), seatIds, paymentMethod }),
+    { headers: memberHeaders(memberId), tags: { name: 'confirm' } });
+}
+
+export function cancelReservation(memberId, reservationId) {
+  return http.post(`${BASE}/api/reservations/${reservationId}/cancel`, null,
+    { headers: memberHeaders(memberId), tags: { name: 'cancel' } });
+}
+
+// setup에서 쓰는 준비 단계: 실패하면 테스트 자체를 멈춘다
+export function mustSucceed(res, what) {
+  if (!isSuccess(res)) {
+    throw new Error(`${what} 실패 (${res.status}) ${res.body}. demo-reset.sql을 실행했는지 확인해 주세요.`);
+  }
+  return res;
+}
