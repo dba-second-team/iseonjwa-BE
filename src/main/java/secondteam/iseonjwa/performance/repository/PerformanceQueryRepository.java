@@ -15,7 +15,28 @@ import java.util.Optional;
 
 public interface PerformanceQueryRepository extends Repository<Performance, Long> {
 
-    Page<Performance> findAllByStatusNot(PerformanceStatus status, Pageable pageable);
+    @Query(value = """
+            select performance
+            from Performance performance
+            where performance.status <> :excludedStatus
+            order by case performance.status
+                         when secondteam.iseonjwa.performance.entity.PerformanceStatus.ON_SALE then 0
+                         when secondteam.iseonjwa.performance.entity.PerformanceStatus.UPCOMING then 1
+                         when secondteam.iseonjwa.performance.entity.PerformanceStatus.SOLD_OUT then 2
+                         else 3
+                     end,
+                     (select min(schedule.startAt)
+                      from Schedule schedule
+                      where schedule.performance = performance) asc nulls last,
+                     performance.performanceId asc
+            """,
+            countQuery = """
+                    select count(performance)
+                    from Performance performance
+                    where performance.status <> :excludedStatus
+                    """)
+    Page<Performance> findListedPerformances(@Param("excludedStatus") PerformanceStatus excludedStatus,
+                                             Pageable pageable);
 
     Optional<Performance> findByPerformanceId(Long performanceId);
 
