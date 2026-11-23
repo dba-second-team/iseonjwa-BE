@@ -21,6 +21,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 @Service
 @RequiredArgsConstructor
@@ -44,29 +46,40 @@ public class SeatService {
         Schedule schedule = scheduleRepository.findByIdWithPerformance(scheduleId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
+        // 같은 회차에서 다시 고르면 이전 선점을 새 선택으로 교체한다.
+        // 이전 선점 좌석도 함께 잠가야 하므로 요청 좌석과 합쳐 seat_id 순으로 잠근다.
+        LocalDateTime now = LocalDateTime.now(SEAT_TIME_ZONE).truncatedTo(ChronoUnit.SECONDS);
+        Set<Long> requestedIds = Set.copyOf(seatIds);
+        TreeSet<Long> lockIds = new TreeSet<>(requestedIds);
+        lockIds.addAll(seatRepository.findActiveHoldSeatIds(memberId, scheduleId, now));
+
         List<Seat> seats = new ArrayList<>(seatIds.size());
-        for (Long seatId : seatIds.stream().sorted().toList()) {
+        List<Seat> previousHolds = new ArrayList<>();
+        for (Long seatId : lockIds) {
             Seat seat = seatRepository.findByIdForUpdate(seatId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST));
             if (seat.getSchedule().getScheduleId() != scheduleId) {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST);
             }
-            seats.add(seat);
+            if (requestedIds.contains(seatId)) {
+                seats.add(seat);
+            } else if (seat.isHeldBy(memberId)) {
+                previousHolds.add(seat);
+            }
         }
 
-        LocalDateTime now = LocalDateTime.now(SEAT_TIME_ZONE).truncatedTo(ChronoUnit.SECONDS);
-        if (seats.stream().anyMatch(seat -> !seat.canBeHeldAt(now))) {
+        if (seats.stream().anyMatch(seat -> !seat.canBeHeldAt(now) && !seat.isHeldBy(memberId))) {
             throw new BusinessException(ErrorCode.SEAT_UNAVAILABLE);
         }
 
         Member member = lockedMember.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         int limit = schedule.getPerformance().getMaxTicketsPerMember();
-        long heldCount = seatRepository.countActiveHolds(memberId, scheduleId, now);
         long confirmedCount = reservationSeatRepository.countConfirmedSeats(memberId, scheduleId);
-        if (heldCount + confirmedCount + seats.size() > limit) {
+        if (confirmedCount + seats.size() > limit) {
             throw new BusinessException(ErrorCode.HOLD_LIMIT_EXCEEDED);
         }
 
+        previousHolds.forEach(Seat::release);
         LocalDateTime heldUntil = now.plusMinutes(HOLD_MINUTES);
         seats.forEach(seat -> seat.hold(member, heldUntil));
         return new SeatHoldResponse(List.copyOf(seatIds), heldUntil);
