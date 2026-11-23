@@ -20,6 +20,7 @@ export const options = {
   thresholds: {
     hold_success: ['count==1'],                 // 성공은 딱 1명
     'http_req_failed{name:hold}': ['rate==0'],  // 500(락 대기 초과, 데드락 등)은 0건
+    'http_req_duration{name:hold}': ['p(95)<3000'],
     checks: ['rate==1'],
   },
 };

@@ -23,6 +23,7 @@ export const options = {
   thresholds: {
     hold_success: [`count==${LIMIT}`],          // 한도만큼만 성공
     'http_req_failed{name:hold}': ['rate==0'],
+    'http_req_duration{name:hold}': ['p(95)<3000'],
     checks: ['rate==1'],
   },
 };
