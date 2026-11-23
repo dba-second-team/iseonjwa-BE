@@ -4,7 +4,7 @@
 -- ============================================
 
 SET NAMES utf8mb4;  -- 한글 공연명을 비교하므로 클라이언트 문자셋을 맞춘다
-SELECT s.schedule_id AS SCHEDULE_ID
+SELECT p.performance_id AS PERFORMANCE_ID, s.schedule_id AS SCHEDULE_ID
 FROM schedule AS s
 JOIN performance AS p ON p.performance_id = s.performance_id
 WHERE p.title = '이선좌 K-POP LIVE'
@@ -23,6 +23,19 @@ SELECT
         CASE WHEN st.section = 'G' AND st.row_num = '1' AND st.seat_num <= 10 THEN st.seat_id END
         ORDER BY st.seat_id
     ) AS SEAT_IDS
+FROM seat AS st
+JOIN schedule AS s ON s.schedule_id = st.schedule_id
+JOIN performance AS p ON p.performance_id = s.performance_id
+WHERE p.title = '이선좌 K-POP LIVE'
+  AND s.start_at = '2027-01-17 18:00:00';
+
+-- queue-flow.js: 입장한 4명이 다툴 좌석 1개 (F1구역 2열 1번)
+-- pay-race.js: 결제 중복 요청용 좌석 2개 (G구역 2열 1, 2번)
+-- cancel-race.js: 취소 중복 요청용 좌석 2개 (G구역 3열 1, 2번)
+SELECT
+    MAX(CASE WHEN st.section = 'F1' AND st.row_num = '2' AND st.seat_num = 1 THEN st.seat_id END) AS FLOW_SEAT_ID,
+    GROUP_CONCAT(CASE WHEN st.section = 'G' AND st.row_num = '2' AND st.seat_num <= 2 THEN st.seat_id END ORDER BY st.seat_id) AS PAY_SEAT_IDS,
+    GROUP_CONCAT(CASE WHEN st.section = 'G' AND st.row_num = '3' AND st.seat_num <= 2 THEN st.seat_id END ORDER BY st.seat_id) AS CANCEL_SEAT_IDS
 FROM seat AS st
 JOIN schedule AS s ON s.schedule_id = st.schedule_id
 JOIN performance AS p ON p.performance_id = s.performance_id
