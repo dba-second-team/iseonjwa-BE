@@ -12,6 +12,7 @@ RUN ./gradlew bootJar -x test --no-daemon \
 # 실행
 FROM eclipse-temurin:21-jre
 WORKDIR /app
+ENV TZ=Asia/Seoul
 COPY --from=build /app/app.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
