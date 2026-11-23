@@ -3,7 +3,6 @@ package secondteam.iseonjwa.performance.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import secondteam.iseonjwa.global.error.BusinessException;
@@ -39,9 +38,8 @@ public class PerformanceQueryService {
         }
 
         // 취소된 공연은 회원에게 보여 주지 않는다
-        var performances = performanceQueryRepository.findAllByStatusNot(
-                PerformanceStatus.CANCELED,
-                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "performanceId")));
+        var performances = performanceQueryRepository.findListedPerformances(
+                PerformanceStatus.CANCELED, PageRequest.of(page, size));
         if (performances.isEmpty()) {
             return new PerformanceSummaryResponse(List.of(), page, size, performances.getTotalElements());
         }
