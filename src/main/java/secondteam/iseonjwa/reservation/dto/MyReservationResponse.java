@@ -10,7 +10,9 @@ public record MyReservationResponse(List<Item> items, int page, int size, long t
     public record Item(
             Long reservationId,
             Long scheduleId,
+            long scheduleNumber,
             String performanceTitle,
+            String posterUrl,
             String venueName,
             OffsetDateTime startAt,
             List<SeatInfo> seats,

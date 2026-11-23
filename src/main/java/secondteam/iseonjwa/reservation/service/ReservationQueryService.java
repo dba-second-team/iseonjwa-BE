@@ -1,9 +1,9 @@
 package secondteam.iseonjwa.reservation.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import secondteam.iseonjwa.global.error.BusinessException;
@@ -11,11 +11,12 @@ import secondteam.iseonjwa.global.error.ErrorCode;
 import secondteam.iseonjwa.member.repository.MemberRepository;
 import secondteam.iseonjwa.reservation.dto.MyReservationResponse;
 import secondteam.iseonjwa.reservation.entity.Payment;
-import secondteam.iseonjwa.reservation.entity.Reservation;
 import secondteam.iseonjwa.reservation.repository.PaymentRepository;
 import secondteam.iseonjwa.reservation.repository.ReservationRepository;
+import secondteam.iseonjwa.reservation.repository.ReservationRepository.MyReservationRow;
 import secondteam.iseonjwa.reservation.repository.ReservationSeatRepository;
 import secondteam.iseonjwa.seat.entity.Seat;
+import secondteam.iseonjwa.performance.service.PosterStorage;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -25,12 +26,15 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+
+
 /**
  * 예매 "조회" 전용 서비스 (API-4: 내 예매 내역).
  * <p>
  * 데이터를 바꾸지 않으므로 클래스 전체에 읽기 전용 트랜잭션을 적용한다.
  * 예매 확정/취소처럼 데이터를 변경하는 로직은 이 클래스에 넣지 않는다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -43,6 +47,7 @@ public class ReservationQueryService {
     private final ReservationRepository reservationRepository;
     private final ReservationSeatRepository reservationSeatRepository;
     private final PaymentRepository paymentRepository;
+    private final PosterStorage posterStorage;
 
     /**
      * 헤더의 회원이 한 예매 목록을 최신 예매순으로 조회한다.
@@ -62,15 +67,13 @@ public class ReservationQueryService {
             throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
         }
 
-        // 3. 예매 목록 조회 (예매 + 회차 + 공연을 한 번에 가져온다, PENDING 제외), 최신 예매순 정렬
-        Page<Reservation> result = reservationRepository.findMine(
+        // 3. 예매 목록 조회 (예매 + 회차 번호 + 공연 정보를 한 번에 가져온다, PENDING 제외), 최신 예매순 정렬
+        Page<MyReservationRow> result = reservationRepository.findMine(
                 memberId,
-                PageRequest.of(page, size, Sort.by(
-                        Sort.Order.desc("reservedAt"),
-                        Sort.Order.desc("reservationId"))));  // 예매 시각이 같아도 순서가 고정되도록 ID로 한 번 더 정렬
+                PageRequest.of(page, size));
 
         // 4. 이번 페이지 예매들의 ID 모음 (아래 좌석/결제를 한 번에 조회하기 위함)
-        List<Long> ids = result.getContent().stream().map(Reservation::getReservationId).toList();
+        List<Long> ids = result.getContent().stream().map(MyReservationRow::getReservationId).toList();
 
         // 5. 좌석 조회: 예매 ID별로 좌석 목록을 묶는다. (예매마다 따로 조회하면 쿼리가 많아지는 N+1을 피한다)
         //    좌석은 한 예매에 여러 개라서 페이징 쿼리와 합치지 않고 따로 가져온다.
@@ -87,16 +90,18 @@ public class ReservationQueryService {
                         p -> p.getReservation().getReservationId(),
                         Function.identity()));
 
-        // 7. 응답 항목 조립: 예매 + 회차 ID + 공연 정보 + 좌석 목록 + 결제 금액/결제 상태
+        // 7. 응답 항목 조립: 예매 + 회차 ID/회차 번호 + 공연 정보 + 좌석 목록 + 결제 금액/결제 상태
         List<MyReservationResponse.Item> items = result.getContent().stream()
                 .map(r -> {
                     Payment payment = paymentByReservation.get(r.getReservationId());
                     return new MyReservationResponse.Item(
                             r.getReservationId(),
-                            r.getSchedule().getScheduleId(),
-                            r.getSchedule().getPerformance().getTitle(),
-                            r.getSchedule().getPerformance().getVenueName(),
-                            toOffset(r.getSchedule().getStartAt()),
+                            r.getScheduleId(),
+                            r.getScheduleNumber(),
+                            r.getPerformanceTitle(),
+                            posterUrl(r.getPosterKey()),
+                            r.getVenueName(),
+                            toOffset(r.getStartAt()),
                             seatsByReservation.getOrDefault(r.getReservationId(), List.of()),
                             payment != null ? payment.getPaidAmount() : 0,
                             payment != null ? payment.getStatus() : null,
@@ -114,6 +119,15 @@ public class ReservationQueryService {
                 seat.getSection().name(),
                 seat.getRowNum(),
                 seat.getSeatNum());
+    }
+
+    private String posterUrl(String posterKey) {
+        try {
+            return posterStorage.readUrl(posterKey);
+        } catch (BusinessException e) {
+            log.warn("포스터 URL을 만들지 못했습니다. posterKey={}", posterKey, e);
+            return null;
+        }
     }
 
     /** 시간대가 없는 LocalDateTime을 한국 시간(+09:00)이 붙은 OffsetDateTime으로 변환한다. */
