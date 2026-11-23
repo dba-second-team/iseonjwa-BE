@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { sleep } from 'k6';
 
-export const BASE = __ENV.BASE || 'http://localhost:8080';
+export const BASE = (__ENV.BASE || 'http://localhost:8080').replace(/\/+$/, '');
 export const PASSWORD = __ENV.PASSWORD || 'Demo1234!';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
@@ -16,7 +16,8 @@ export const isSuccess = (res) => res.status === 200 || res.status === 201;
 
 export function errorCode(res) {
   try {
-    return res.json('code');
+    const body = res.json();
+    return body.errorCode ?? body.code ?? null;
   } catch (e) {
     return null;
   }
@@ -74,7 +75,7 @@ export function waitUntil(startAt) {
 //   POST /api/schedules/{scheduleId}/seats/hold
 //   헤더 X-Member-Id, 본문 {"seatIds": [1, 2]}
 //   성공 200 {"data": {"seatIds": [...], "heldUntil": "..."}}
-//   실패 409 {"code": "SEAT_UNAVAILABLE" | "HOLD_LIMIT_EXCEEDED", ...}
+//   실패 409 {"errorCode": "SEAT_UNAVAILABLE" | "HOLD_LIMIT_EXCEEDED", "message": "..."}
 // 매수 한도는 회차 단위로 센다 (만료 전 선점 + 확정 예매 좌석)
 // API 명세가 바뀌면 이 함수만 고치면 된다.
 // ============================================
