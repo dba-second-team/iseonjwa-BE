@@ -33,4 +33,13 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
             """)
     long countActiveHolds(@Param("memberId") Long memberId, @Param("scheduleId") Long scheduleId,
                           @Param("now") LocalDateTime now);
+
+    @Query("""
+            select new secondteam.iseonjwa.seat.repository.SeatLayoutRow(
+                s.seatId, s.section, s.rowNum, s.seatNum, s.status, s.heldUntil, m.memberId)
+            from Seat s
+            left join s.heldBy m
+            where s.schedule.scheduleId = :scheduleId
+            """)
+    List<SeatLayoutRow> findLayoutByScheduleId(@Param("scheduleId") Long scheduleId);
 }
