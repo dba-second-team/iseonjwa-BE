@@ -1,6 +1,7 @@
 package secondteam.iseonjwa.reservation.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import secondteam.iseonjwa.reservation.repository.ReservationRepository;
 import secondteam.iseonjwa.reservation.repository.ReservationRepository.MyReservationRow;
 import secondteam.iseonjwa.reservation.repository.ReservationSeatRepository;
 import secondteam.iseonjwa.seat.entity.Seat;
+import secondteam.iseonjwa.performance.service.PosterStorage;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -24,12 +26,15 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+
+
 /**
  * 예매 "조회" 전용 서비스 (API-4: 내 예매 내역).
  * <p>
  * 데이터를 바꾸지 않으므로 클래스 전체에 읽기 전용 트랜잭션을 적용한다.
  * 예매 확정/취소처럼 데이터를 변경하는 로직은 이 클래스에 넣지 않는다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -42,6 +47,7 @@ public class ReservationQueryService {
     private final ReservationRepository reservationRepository;
     private final ReservationSeatRepository reservationSeatRepository;
     private final PaymentRepository paymentRepository;
+    private final PosterStorage posterStorage;
 
     /**
      * 헤더의 회원이 한 예매 목록을 최신 예매순으로 조회한다.
@@ -93,6 +99,7 @@ public class ReservationQueryService {
                             r.getScheduleId(),
                             r.getScheduleNumber(),
                             r.getPerformanceTitle(),
+                            posterUrl(r.getPosterKey()),
                             r.getVenueName(),
                             toOffset(r.getStartAt()),
                             seatsByReservation.getOrDefault(r.getReservationId(), List.of()),
@@ -112,6 +119,15 @@ public class ReservationQueryService {
                 seat.getSection().name(),
                 seat.getRowNum(),
                 seat.getSeatNum());
+    }
+
+    private String posterUrl(String posterKey) {
+        try {
+            return posterStorage.readUrl(posterKey);
+        } catch (BusinessException e) {
+            log.warn("포스터 URL을 만들지 못했습니다. posterKey={}", posterKey, e);
+            return null;
+        }
     }
 
     /** 시간대가 없는 LocalDateTime을 한국 시간(+09:00)이 붙은 OffsetDateTime으로 변환한다. */

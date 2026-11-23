@@ -6,17 +6,35 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
+import java.net.MalformedURLException;
+import java.net.URI;
+
+import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:my-reservations-test;MODE=MySQL")
+
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:my-reservations-test;MODE=MySQL",
+        "app.s3.bucket=test-posters"
+})
 @AutoConfigureMockMvc
 class MyReservationQueryControllerTest {
 
     private static final String ENDPOINT = "/api/members/me/reservations";
+    private static final String POSTER_URL =
+            "https://test-posters.s3.ap-northeast-2.amazonaws.com/posters/iu.png?signature=example";
 
     @Autowired
     private MockMvc mockMvc;
@@ -24,8 +42,15 @@ class MyReservationQueryControllerTest {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @MockitoBean
+    private S3Presigner s3Presigner;
+
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        var signed = mock(PresignedGetObjectRequest.class);
+        when(signed.url()).thenReturn(URI.create(POSTER_URL).toURL());
+        when(s3Presigner.presignGetObject(any(GetObjectPresignRequest.class))).thenReturn(signed);
+
         jdbc.update("DELETE FROM payment");
         jdbc.update("DELETE FROM reservation_seat");
         jdbc.update("DELETE FROM reservation");
@@ -41,9 +66,9 @@ class MyReservationQueryControllerTest {
                 """);
 
         jdbc.update("""
-                INSERT INTO performance (performance_id, title, genre, running_time, status, venue_name, max_tickets_per_member)
-                VALUES (3001, '아이유 콘서트', 'K_POP', 150, 'ON_SALE', '잠실주경기장', 4),
-                       (3002, '재즈 나이트', 'ETC', 100, 'ON_SALE', '블루노트', 4)
+                INSERT INTO performance (performance_id, title, genre, running_time, status, venue_name, max_tickets_per_member, poster_key)
+                VALUES (3001, '아이유 콘서트', 'K_POP', 150, 'ON_SALE', '잠실주경기장', 4, 'posters/iu.png'),
+                       (3002, '재즈 나이트', 'ETC', 100, 'ON_SALE', '블루노트', 4, NULL)
                 """);
 
         // schedule_id 순서와 start_at 순서가 달라도 각 공연 내 start_at 오름차순 기준으로 회차(scheduleNumber)가 계산되어야 함
@@ -109,5 +134,27 @@ class MyReservationQueryControllerTest {
                 .andExpect(jsonPath("$.data.items[2].scheduleId").value(4001))
                 .andExpect(jsonPath("$.data.items[2].scheduleNumber").value(3))
                 .andExpect(jsonPath("$.data.items[2].performanceTitle").value("아이유 콘서트"));
+    }
+
+    @Test
+    void returnsPosterUrlOnlyWhenPerformanceHasPoster() throws Exception {
+        mockMvc.perform(get(ENDPOINT)
+                        .header("X-Member-Id", 2001L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].posterUrl").value(nullValue()))
+                .andExpect(jsonPath("$.data.items[1].posterUrl").value(POSTER_URL))
+                .andExpect(jsonPath("$.data.items[2].posterUrl").value(POSTER_URL));
+    }
+
+    @Test
+    void returnsNullPosterUrlWhenPresignFails() throws Exception {
+        when(s3Presigner.presignGetObject(any(GetObjectPresignRequest.class)))
+                .thenThrow(SdkClientException.create("down"));
+
+        mockMvc.perform(get(ENDPOINT)
+                        .header("X-Member-Id", 2001L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalCount").value(3))
+                .andExpect(jsonPath("$.data.items[2].posterUrl").value(nullValue()));
     }
 }

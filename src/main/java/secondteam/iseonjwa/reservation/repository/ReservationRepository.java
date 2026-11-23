@@ -22,6 +22,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
                     where earlier.performance.performanceId = p.performanceId
                       and earlier.startAt <= s.startAt) as scheduleNumber,
                    p.title as performanceTitle,
+                   p.posterKey as posterKey,
                    p.venueName as venueName,
                    s.startAt as startAt,
                    r.reservedAt as reservedAt
@@ -50,8 +51,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
         Long getScheduleId();
         long getScheduleNumber();
         String getPerformanceTitle();
+        String getPosterKey();
         String getVenueName();
         LocalDateTime getStartAt();
         LocalDateTime getReservedAt();
+
     }
 }
