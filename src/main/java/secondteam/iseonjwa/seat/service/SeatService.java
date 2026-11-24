@@ -48,10 +48,10 @@ public class SeatService {
 
         // 같은 회차에서 다시 고르면 이전 선점을 새 선택으로 교체한다.
         // 이전 선점 좌석도 함께 잠가야 하므로 요청 좌석과 합쳐 seat_id 순으로 잠근다.
-        LocalDateTime now = LocalDateTime.now(SEAT_TIME_ZONE).truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime lookupTime = LocalDateTime.now(SEAT_TIME_ZONE).truncatedTo(ChronoUnit.SECONDS);
         Set<Long> requestedIds = Set.copyOf(seatIds);
         TreeSet<Long> lockIds = new TreeSet<>(requestedIds);
-        lockIds.addAll(seatRepository.findActiveHoldSeatIds(memberId, scheduleId, now));
+        lockIds.addAll(seatRepository.findActiveHoldSeatIds(memberId, scheduleId, lookupTime));
 
         List<Seat> seats = new ArrayList<>(seatIds.size());
         List<Seat> previousHolds = new ArrayList<>();
@@ -68,6 +68,8 @@ public class SeatService {
             }
         }
 
+        // 잠금 대기 중에 만료된 선점도 다시 선택할 수 있도록 잠금 획득 후 시각으로 판단한다.
+        LocalDateTime now = LocalDateTime.now(SEAT_TIME_ZONE).truncatedTo(ChronoUnit.SECONDS);
         if (seats.stream().anyMatch(seat -> !seat.canBeHeldAt(now) && !seat.isHeldBy(memberId))) {
             throw new BusinessException(ErrorCode.SEAT_UNAVAILABLE);
         }
