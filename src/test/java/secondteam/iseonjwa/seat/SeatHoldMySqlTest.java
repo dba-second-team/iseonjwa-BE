@@ -172,7 +172,7 @@ class SeatHoldMySqlTest {
         long seat = seats.getFirst();
         hold(firstMember, schedule, List.of(seat).toString()).andExpect(status().isOk());
         StoredSeat live = storedSeat(seat);
-        hold(firstMember, schedule, List.of(seat).toString())
+        hold(secondMember, schedule, List.of(seat).toString())
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errorCode").value("SEAT_UNAVAILABLE"));
         assertThat(storedSeat(seat)).isEqualTo(live);
@@ -185,18 +185,47 @@ class SeatHoldMySqlTest {
     }
 
     @Test
-    void concurrentRequestsByOneMemberRespectTheCumulativeLimit() throws Exception {
+    void holdingAgainReplacesThePreviousHoldInTheSameSchedule() throws Exception {
+        setLimit(2);
+        long first = seats.get(0);
+        long second = seats.get(1);
+        long third = seats.get(2);
+        hold(firstMember, schedule, "[%d,%d]".formatted(first, second)).andExpect(status().isOk());
+
+        hold(firstMember, schedule, "[%d,%d]".formatted(second, third)).andExpect(status().isOk());
+
+        assertThat(storedSeat(first)).isEqualTo(AVAILABLE);
+        assertThat(storedSeat(second).member()).isEqualTo(firstMember);
+        assertThat(storedSeat(third).member()).isEqualTo(firstMember);
+        assertThat(storedSeat(third)).isEqualTo(storedSeat(second));
+    }
+
+    @Test
+    void failedHoldKeepsThePreviousHold() throws Exception {
+        long held = seats.get(0);
+        long reserved = seats.get(1);
+        hold(firstMember, schedule, List.of(held).toString()).andExpect(status().isOk());
+        StoredSeat before = storedSeat(held);
+        jdbc.update("update seat set status = 'RESERVED' where seat_id = ?", reserved);
+
+        hold(firstMember, schedule, List.of(reserved).toString())
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("SEAT_UNAVAILABLE"));
+
+        assertThat(storedSeat(held)).isEqualTo(before);
+    }
+
+    @Test
+    void concurrentRequestsByOneMemberLeaveOnlyTheLastSelection() throws Exception {
         setLimit(1);
         long first = seats.get(0);
         long second = seats.get(1);
 
         List<Outcome> outcomes = race(firstMember, first, firstMember, second);
 
-        assertThat(outcomes).extracting(Outcome::status).containsExactlyInAnyOrder(200, 409);
-        assertThat(outcomes).filteredOn(outcome -> outcome.status() == 409)
-                .extracting(Outcome::errorCode).containsExactly("HOLD_LIMIT_EXCEEDED");
-        assertThat(storedSeat(first).status()).isEqualTo(outcomes.get(0).status() == 200 ? "HELD" : "AVAILABLE");
-        assertThat(storedSeat(second).status()).isEqualTo(outcomes.get(1).status() == 200 ? "HELD" : "AVAILABLE");
+        assertThat(outcomes).extracting(Outcome::status).containsExactly(200, 200);
+        assertThat(List.of(storedSeat(first).status(), storedSeat(second).status()))
+                .containsExactlyInAnyOrder("HELD", "AVAILABLE");
     }
 
     @Test

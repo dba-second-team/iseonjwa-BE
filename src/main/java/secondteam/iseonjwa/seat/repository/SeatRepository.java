@@ -27,12 +27,12 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     Optional<Seat> findByIdForUpdate(@Param("seatId") Long seatId);
 
     @Query("""
-            select count(s) from Seat s
+            select s.seatId from Seat s
             where s.heldBy.memberId = :memberId and s.schedule.scheduleId = :scheduleId
                 and s.status = secondteam.iseonjwa.seat.entity.SeatStatus.HELD and s.heldUntil > :now
             """)
-    long countActiveHolds(@Param("memberId") Long memberId, @Param("scheduleId") Long scheduleId,
-                          @Param("now") LocalDateTime now);
+    List<Long> findActiveHoldSeatIds(@Param("memberId") Long memberId, @Param("scheduleId") Long scheduleId,
+                                     @Param("now") LocalDateTime now);
 
     @Query("""
             select new secondteam.iseonjwa.seat.repository.SeatLayoutRow(
